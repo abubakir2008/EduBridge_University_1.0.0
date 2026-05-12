@@ -135,13 +135,8 @@ const advantages = [
 
 const countries = [
   { flag: '🇩🇪', name: 'Германия' },
-  { flag: '🇮🇹', name: 'Италия' },
   { flag: '🇺🇸', name: 'США' },
-  { flag: '🇨🇿', name: 'Чехия' },
-  { flag: '🇵🇱', name: 'Польша' },
-  { flag: '🇭🇺', name: 'Венгрия' },
-  { flag: '🇦🇹', name: 'Австрия' },
-  { flag: '🇸🇰', name: 'Словакия' },
+  { flag: '🇮🇹', name: 'Италия' },
 ]
 
 const testimonials = [
@@ -517,7 +512,7 @@ export default function LandingPage() {
               Популярные страны для поступления
             </h2>
           </motion.div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 max-w-2xl mx-auto gap-4">
             {countries.map((c, i) => (
               <motion.div key={c.name} {...fadeUp(i * 0.06)}>
                 <div className="bg-white rounded-card border border-slate-100 shadow-card p-5 flex flex-col items-center gap-3 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-default">
