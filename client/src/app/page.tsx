@@ -217,7 +217,47 @@ export default function LandingPage() {
     return () => observer.disconnect();
   }, []);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'EducationalOrganization',
+        '@id': 'https://university.edubridge.bond/#organization',
+        name: 'EduBridge University',
+        url: 'https://university.edubridge.bond',
+        logo: 'https://university.edubridge.bond/favicon.ico',
+        description:
+          'Образовательная платформа, помогающая студентам из СНГ поступить в зарубежные университеты Германии, Италии, Китая, Турции, США.',
+        foundingDate: '2021',
+        email: 'educationbridge.kg@gmail.com',
+        sameAs: ['https://instagram.com/edubridge.kg'],
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: 'ул. Фурманова 12',
+          addressLocality: 'Бишкек',
+          addressRegion: 'Ленинский район',
+          addressCountry: 'KG',
+        },
+        areaServed: ['KG', 'KZ', 'RU'],
+        numberOfStudents: { '@type': 'QuantitativeValue', value: 3000 },
+      },
+      {
+        '@type': 'WebSite',
+        '@id': 'https://university.edubridge.bond/#website',
+        url: 'https://university.edubridge.bond',
+        name: 'EduBridge University',
+        publisher: { '@id': 'https://university.edubridge.bond/#organization' },
+        inLanguage: 'ru',
+      },
+    ],
+  }
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     <div className="min-h-screen bg-white overflow-x-hidden">
       {/* ── Header ── */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">
@@ -1024,5 +1064,6 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
