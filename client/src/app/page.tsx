@@ -135,13 +135,13 @@ const advantages = [
 
 const countries = [
   { flag: '🇩🇪', name: 'Германия' },
+  { flag: '🇮🇹', name: 'Италия' },
+  { flag: '🇺🇸', name: 'США' },
   { flag: '🇨🇿', name: 'Чехия' },
   { flag: '🇵🇱', name: 'Польша' },
   { flag: '🇭🇺', name: 'Венгрия' },
   { flag: '🇦🇹', name: 'Австрия' },
   { flag: '🇸🇰', name: 'Словакия' },
-  { flag: '🇧🇬', name: 'Болгария' },
-  { flag: '🇷🇴', name: 'Румыния' },
 ]
 
 const testimonials = [
@@ -402,6 +402,49 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── About ── */}
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-col lg:flex-row items-center gap-16">
+            <motion.div {...fadeUp()} className="flex-1 text-center lg:text-left">
+              <span className="text-primary font-semibold text-sm uppercase tracking-wide">О компании</span>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-text-primary">
+                Чем занимается EduBridge University
+              </h2>
+              <p className="mt-4 text-text-secondary leading-relaxed">
+                EduBridge University — образовательная платформа, которая помогает студентам из СНГ поступить
+                в зарубежные университеты. Мы не просто консультируем — мы ведём каждого студента от первой
+                заявки до получения диплома.
+              </p>
+              <p className="mt-4 text-text-secondary leading-relaxed">
+                Наша команда имеет многолетний опыт в международном образовании и знает все тонкости
+                поступления в университеты Германии, Италии, США, Чехии и других стран. Мы отслеживаем
+                дедлайны, помогаем с документами, визой и адаптацией на новом месте.
+              </p>
+            </motion.div>
+
+            <motion.div {...fadeUp(0.1)} className="flex-1 grid grid-cols-2 gap-4 w-full">
+              {[
+                { icon: BookOpen, title: 'Образовательные программы', desc: 'Подбираем университеты и программы под цели и бюджет каждого студента', color: 'bg-blue-50 text-blue-600' },
+                { icon: Shield, title: 'Гарантия поступления', desc: 'При выполнении всех шагов программы гарантируем зачисление минимум в один вуз', color: 'bg-emerald-50 text-emerald-600' },
+                { icon: Users, title: 'Индивидуальный подход', desc: 'Персональный менеджер на каждом этапе — от консультации до отъезда', color: 'bg-violet-50 text-violet-600' },
+                { icon: Globe, title: 'Международная сеть', desc: 'Партнёрские отношения с университетами в 10+ странах мира', color: 'bg-amber-50 text-amber-600' },
+              ].map((item, i) => (
+                <motion.div key={i} {...fadeUp(i * 0.08)}>
+                  <div className="bg-white rounded-card border border-slate-100 shadow-card p-5 h-full">
+                    <div className={`w-10 h-10 ${item.color} rounded-xl flex items-center justify-center mb-3`}>
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-semibold text-text-primary text-sm mb-1">{item.title}</h3>
+                    <p className="text-xs text-text-secondary leading-relaxed">{item.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ── How it works ── */}
       <section id="how" className="py-24 bg-slate-50/60">
         <div className="mx-auto max-w-6xl px-4">
@@ -484,6 +527,9 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+          <motion.p {...fadeUp(0.5)} className="mt-8 text-center text-text-muted text-sm">
+            и другие популярные страны мира — помогаем поступить туда, где вы хотите учиться
+          </motion.p>
         </div>
       </section>
 
