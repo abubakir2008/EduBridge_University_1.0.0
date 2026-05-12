@@ -134,34 +134,10 @@ const advantages = [
 ]
 
 const countries = [
-  { flag: '🇩🇪', name: 'Германия' },
-  { flag: '🇺🇸', name: 'США' },
   { flag: '🇮🇹', name: 'Италия' },
+  { flag: '🇨🇳', name: 'Китай' },
 ]
 
-const testimonials = [
-  {
-    name: 'Айгерим К.',
-    from: 'Бишкек → Мюнхен',
-    text: 'Я не верила, что смогу поступить за рубеж. EduBridge провёл меня за руку — от документов до встречи в аэропорту. Сейчас учусь в Мюнхене на гранте!',
-    avatar: 'АК',
-    rating: 5,
-  },
-  {
-    name: 'Данияр М.',
-    from: 'Алматы → Варшава',
-    text: 'Благодаря платформе я всегда знал что делать дальше. Личный кабинет с дедлайнами — это просто спасение для тех, кто подаёт в несколько вузов сразу.',
-    avatar: 'ДМ',
-    rating: 5,
-  },
-  {
-    name: 'Камила Р.',
-    from: 'Ташкент → Прага',
-    text: 'Курсы английского дали хорошую базу для TOEFL. Команда помогла с визой и встретила в аэропорту. Рекомендую всем, кто хочет учиться за границей!',
-    avatar: 'КР',
-    rating: 5,
-  },
-]
 
 const leadSchema = z.object({
   full_name: z.string().min(2, 'Введите имя'),
@@ -413,7 +389,7 @@ export default function LandingPage() {
               </p>
               <p className="mt-4 text-text-secondary leading-relaxed">
                 Наша команда имеет многолетний опыт в международном образовании и знает все тонкости
-                поступления в университеты Германии, Италии, США, Чехии и других стран. Мы отслеживаем
+                поступления в университеты Германии, Италии, Китая и других стран. Мы отслеживаем
                 дедлайны, помогаем с документами, визой и адаптацией на новом месте.
               </p>
             </motion.div>
@@ -512,7 +488,7 @@ export default function LandingPage() {
               Популярные страны для поступления
             </h2>
           </motion.div>
-          <div className="grid grid-cols-3 max-w-2xl mx-auto gap-4">
+          <div className="grid grid-cols-2 max-w-sm mx-auto gap-4">
             {countries.map((c, i) => (
               <motion.div key={c.name} {...fadeUp(i * 0.06)}>
                 <div className="bg-white rounded-card border border-slate-100 shadow-card p-5 flex flex-col items-center gap-3 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-default">
@@ -567,41 +543,6 @@ export default function LandingPage() {
                 ))}
               </div>
             </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Testimonials ── */}
-      <section className="py-24 bg-white">
-        <div className="mx-auto max-w-6xl px-4">
-          <motion.div {...fadeUp()} className="text-center mb-16">
-            <span className="text-primary font-semibold text-sm uppercase tracking-wide">Отзывы</span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-text-primary">
-              Истории успеха наших студентов
-            </h2>
-          </motion.div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div key={i} {...fadeUp(i * 0.1)}>
-                <div className="bg-white rounded-card border border-slate-100 shadow-card p-6 h-full hover:shadow-lg transition-shadow">
-                  <div className="flex gap-1 mb-4">
-                    {Array(t.rating).fill(0).map((_, j) => (
-                      <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-text-secondary text-sm leading-relaxed mb-6">"{t.text}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-semibold text-sm">
-                      {t.avatar}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-text-primary text-sm">{t.name}</p>
-                      <p className="text-text-muted text-xs">{t.from}</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
