@@ -951,33 +951,72 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-slate-100 py-10 bg-slate-50">
+      <footer className="border-t border-slate-100 py-12 bg-slate-50">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-                <GraduationCap className="h-4 w-4 text-white" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
+            {/* Brand */}
+            <div>
+              <Link href="/" className="flex items-center gap-2 mb-3">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
+                  <GraduationCap className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-bold text-text-primary">EduBridge University</span>
+              </Link>
+              <p className="text-sm text-text-muted leading-relaxed">
+                Помогаем студентам из СНГ поступить в зарубежные университеты — от заявки до диплома.
+              </p>
+              <div className="flex items-center gap-2 mt-4 text-sm text-text-muted">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span>Работаем с 2021 года</span>
               </div>
-              <span className="font-bold text-text-primary">EduBridge</span>
-            </Link>
-            <nav className="flex flex-wrap justify-center gap-6">
-              {navLinks.map(({ label, href }) => (
+            </div>
+
+            {/* Navigation */}
+            <div>
+              <p className="text-sm font-semibold text-text-primary mb-4">Навигация</p>
+              <nav className="flex flex-col gap-2">
+                {navLinks.map(({ label, href }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="text-sm text-text-secondary hover:text-primary transition-colors"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+
+            {/* Contacts */}
+            <div>
+              <p className="text-sm font-semibold text-text-primary mb-4">Контакты</p>
+              <div className="flex flex-col gap-3 text-sm text-text-secondary">
                 <a
-                  key={label}
-                  href={href}
-                  className="text-sm text-text-secondary hover:text-primary transition-colors"
+                  href="mailto:educationbridge.kg@gmail.com"
+                  className="flex items-center gap-2 hover:text-primary transition-colors"
                 >
-                  {label}
+                  <Send className="w-4 h-4 flex-shrink-0" />
+                  educationbridge.kg@gmail.com
                 </a>
-              ))}
-            </nav>
-            <div className="flex items-center gap-4 text-sm text-text-muted">
-              <Clock className="w-4 h-4" />
-              <span>Работаем с 2021 года</span>
+                <a
+                  href="https://instagram.com/edubridge.kg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-primary transition-colors"
+                >
+                  <Globe className="w-4 h-4 flex-shrink-0" />
+                  @edubridge.kg
+                </a>
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>г. Бишкек, Ленинский район,<br />ул. Фурманова 12</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-8 border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-muted">
-            <p>© 2025 EduBridge. Все права защищены.</p>
+
+          <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-muted">
+            <p>© 2025 EduBridge University. Все права защищены.</p>
             <p>Кыргызстан · Казахстан · Россия</p>
           </div>
         </div>
