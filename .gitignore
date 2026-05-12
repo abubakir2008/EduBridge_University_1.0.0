@@ -1,0 +1,25 @@
+# Secrets — NEVER commit
+server/.env
+client/.env.local
+client/.env.production
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Node
+client/node_modules/
+client/.next/
+client/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

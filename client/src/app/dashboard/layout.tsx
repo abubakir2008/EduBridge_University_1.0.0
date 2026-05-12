@@ -1,0 +1,31 @@
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { StudentSidebar } from '@/components/layout/StudentSidebar'
+import { useAuthStore } from '@/lib/store/authStore'
+import { PageSpinner } from '@/components/ui/spinner'
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, accessToken, fetchMe, isLoading } = useAuthStore()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!accessToken) { router.push('/login'); return }
+    if (!user) fetchMe()
+  }, [accessToken, user, fetchMe, router])
+
+  useEffect(() => {
+    if (user && user.role === 'admin') router.push('/admin')
+  }, [user, router])
+
+  if (!user || isLoading) return <PageSpinner />
+
+  return (
+    <div className="flex min-h-screen bg-background-elevated">
+      <StudentSidebar />
+      <main className="flex-1 p-6 pb-24 md:pb-6 overflow-auto">
+        {children}
+      </main>
+    </div>
+  )
+}

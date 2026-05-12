@@ -1,0 +1,54 @@
+services:
+  app:
+    build: .
+    container_name: edubridge_app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgresql:
+    image: postgres:16-alpine
+    container_name: edubridge_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edubridge}
+      POSTGRES_USER: ${POSTGRES_USER:-edubridge_university}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Abubakiru@123}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edubridge_university} -d ${POSTGRES_DB:-edubridge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: edubridge_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  minio_data:

@@ -1,0 +1,74 @@
+services:
+
+  # ── Frontend (Next.js standalone) ───────────────────────────────────────────
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: edubridge_frontend
+    environment:
+      - NODE_ENV=production
+      - INTERNAL_API_URL=http://edubridge_app:8000
+    restart: unless-stopped
+    networks:
+      - edubridge-net
+      - default
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  app:
+    build: ./server
+    container_name: edubridge_app
+    env_file:
+      - ./server/.env
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - edubridge-net
+      - default
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgresql:
+    image: postgres:16-alpine
+    container_name: edubridge_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edubridge}
+      POSTGRES_USER: ${POSTGRES_USER:-edubridge_university}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edubridge_university} -d ${POSTGRES_DB:-edubridge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── MinIO (object storage) ───────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: edubridge_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  edubridge-net:
+    external: true

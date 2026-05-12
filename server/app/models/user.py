@@ -1,0 +1,48 @@
+import uuid
+import enum
+from sqlalchemy import Column, String, Enum, Float, Text, DateTime, JSON, Date
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from app.db.base import Base
+
+
+class UserRole(str, enum.Enum):
+    student = "student"
+    admin = "admin"
+
+
+class AccountStatus(str, enum.Enum):
+    active = "active"
+    archived = "archived"
+    enrolled = "enrolled"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    full_name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    phone = Column(String(50), nullable=True)
+    login = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.student)
+    account_status = Column(Enum(AccountStatus), nullable=False, default=AccountStatus.active)
+
+    date_of_birth = Column(Date, nullable=True)
+    citizenship = Column(String(100), nullable=True)
+
+    gpa = Column(Float, nullable=True)
+    test_scores = Column(JSON, nullable=True)
+    achievements = Column(Text, nullable=True)
+    country_preference = Column(JSON, nullable=True)
+    specialty_preference = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    favourites = relationship("Favourite", back_populates="user", cascade="all, delete-orphan")
+    student_progress = relationship("StudentProgress", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    uploaded_files = relationship("File", back_populates="uploaded_by_user")
