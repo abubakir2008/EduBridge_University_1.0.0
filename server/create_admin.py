@@ -1,15 +1,13 @@
 """
 Run inside the app container:
   docker exec -it edubridge_app python create_admin.py
+  docker exec -it edubridge_app python create_admin.py --reset
 """
 import sys
-import asyncio
 import uuid
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
-# Must be importable from the project root (/app inside container)
 from app.core.config import settings
 from app.core.security import hash_password
 from app.models.user import User, UserRole, AccountStatus
@@ -19,30 +17,30 @@ LOGIN    = "admin"
 PASSWORD = "Admin123456"
 FULLNAME = "Администратор"
 
+# Use sync psycopg2 URL (strip async prefix if present)
+db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 
-async def create_admin() -> None:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+engine = create_engine(db_url, echo=False)
 
-    async with async_session() as session:
-        # Check if already exists
-        result = await session.execute(select(User).where(User.email == EMAIL))
-        existing = result.scalar_one_or_none()
+
+def create_admin() -> None:
+    with Session(engine) as session:
+        existing = session.execute(select(User).where(User.email == EMAIL)).scalar_one_or_none()
 
         if existing:
             if existing.role != UserRole.admin:
                 existing.role = UserRole.admin
                 existing.password_hash = hash_password(PASSWORD)
-                await session.commit()
-                print(f"[updated] {EMAIL} → role set to admin, password reset")
+                session.commit()
+                print(f"[updated] {EMAIL} → роль admin, пароль сброшен")
             else:
-                print(f"[exists]  {EMAIL} is already an admin")
-                print("         To reset password re-run with --reset flag:")
-                print("         docker exec -it edubridge_app python create_admin.py --reset")
+                print(f"[exists]  {EMAIL} уже является администратором")
                 if "--reset" in sys.argv:
                     existing.password_hash = hash_password(PASSWORD)
-                    await session.commit()
-                    print("[reset]   password updated")
+                    session.commit()
+                    print(f"[reset]   пароль обновлён → {PASSWORD}")
+                else:
+                    print("         Для сброса пароля: python create_admin.py --reset")
             return
 
         admin = User(
@@ -55,14 +53,12 @@ async def create_admin() -> None:
             account_status=AccountStatus.active,
         )
         session.add(admin)
-        await session.commit()
-        print(f"[created] admin user")
+        session.commit()
+        print("[created] Администратор создан:")
         print(f"  email:    {EMAIL}")
         print(f"  login:    {LOGIN}")
         print(f"  password: {PASSWORD}")
 
-    await engine.dispose()
-
 
 if __name__ == "__main__":
-    asyncio.run(create_admin())
+    create_admin()
