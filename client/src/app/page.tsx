@@ -182,10 +182,34 @@ export default function LandingPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LeadForm>({
     resolver: zodResolver(leadSchema),
+    defaultValues: { phone: '+996' },
   });
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const PREFIX = '+996'
+    let raw = e.target.value
+    if (!raw.startsWith(PREFIX)) raw = PREFIX
+    const digits = raw.slice(PREFIX.length).replace(/\D/g, '').slice(0, 9)
+    setValue('phone', PREFIX + digits, { shouldValidate: true })
+  }
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const PREFIX = '+996'
+    const input = e.currentTarget
+    if (
+      e.key === 'Backspace' &&
+      input.selectionStart !== null &&
+      input.selectionStart <= PREFIX.length &&
+      input.selectionEnd !== null &&
+      input.selectionEnd <= PREFIX.length
+    ) {
+      e.preventDefault()
+    }
+  }
 
   const onSubmit = async (data: LeadForm) => {
     try {
@@ -952,6 +976,13 @@ export default function LandingPage() {
                         placeholder="+996700123456"
                         error={errors.phone?.message}
                         {...register("phone")}
+                        onChange={handlePhoneChange}
+                        onKeyDown={handlePhoneKeyDown}
+                        onFocus={(e) => {
+                          if (!e.target.value.startsWith('+996')) {
+                            setValue('phone', '+996', { shouldValidate: false })
+                          }
+                        }}
                       />
                     </div>
                     <Input
