@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'admin'
 export type AccountStatus = 'active' | 'archived' | 'enrolled'
-export type LeadStatus = 'new' | 'contacted' | 'registered'
+export type LeadStatus = 'new' | 'contacted' | 'registered' | 'rejected'
 export type ProgressStatus = 'in_progress' | 'completed'
 export type RequirementType = 'checkbox' | 'file_upload'
 export type DeadlineStatus = 'on_track' | 'at_risk' | 'overdue'
@@ -11,6 +11,11 @@ export type NotificationType =
   | 'deadline_at_risk'
   | 'deadline_overdue'
   | 'manual'
+
+export interface LanguageSkill {
+  language: string
+  level: string
+}
 
 export interface User {
   id: string
@@ -24,7 +29,12 @@ export interface User {
   sat_score?: number
   achievements?: string
   desired_specialty?: string
+  specialty_preference?: string
   country_preference?: string
+  contact_person?: string
+  contact_person_phone?: string
+  contract_file_id?: string
+  language_skills?: LanguageSkill[]
   role: UserRole
   account_status: AccountStatus
   created_at: string
@@ -46,12 +56,17 @@ export interface University {
   country: string
   city: string
   description?: string
-  specialties?: string
+  specialties?: string[] | string
   requirements?: string
   tuition_fee?: number
   ranking?: number
+  cost?: number
+  rating?: number
   logo_file_id?: string
   logo_url?: string
+  photo_file_ids?: string[]
+  video_url?: string
+  video_file_id?: string
 }
 
 export interface Stage {
@@ -149,6 +164,11 @@ export interface Credentials {
   password: string
 }
 
+export interface FunnelStep {
+  label: string
+  value: number
+}
+
 export interface AdminDashboardSummary {
   total_students: number
   active_students: number
@@ -156,6 +176,7 @@ export interface AdminDashboardSummary {
   archived_students: number
   new_leads: number
   overdue_students: number
+  funnel?: FunnelStep[]
 }
 
 export interface AdminStudentRow {

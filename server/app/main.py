@@ -8,12 +8,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.core.limiter import limiter
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import engine
 import app.models  # noqa: F401
 
 from app.api.v1 import auth, cases, favourites, files, leads, lessons, notifications, stages, training, universities, users
-from app.api.v1.admin import dashboard, notifications as admin_notifications
+from app.api.v1.admin import dashboard, notifications as admin_notifications, reminders, activity_log
 from app.services.file_service import init_buckets
 from app.tasks.deadline_checker import check_deadlines
 
@@ -22,7 +20,7 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Migrations are run by entrypoint.sh before uvicorn starts
     try:
         init_buckets()
     except Exception:
@@ -65,6 +63,8 @@ app.include_router(cases.router, prefix=PREFIX)
 app.include_router(files.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
 app.include_router(admin_notifications.router, prefix=PREFIX)
+app.include_router(reminders.router, prefix=PREFIX)
+app.include_router(activity_log.router, prefix=PREFIX)
 
 
 @app.get("/health")

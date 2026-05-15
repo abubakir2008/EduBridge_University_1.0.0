@@ -34,17 +34,17 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className={`relative w-full ${maxWidth} rounded-card bg-white shadow-xl`}
+            className={`relative w-full ${maxWidth} rounded-card bg-white shadow-xl flex flex-col max-h-[90vh]`}
           >
             {title && (
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-                <button onClick={onClose} className="text-text-muted hover:text-text-secondary">
+              <div className="flex-shrink-0 flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <h2 className="text-lg font-semibold text-text-primary truncate pr-4">{title}</h2>
+                <button onClick={onClose} className="flex-shrink-0 text-text-muted hover:text-text-secondary">
                   <X className="h-5 w-5" />
                 </button>
               </div>
             )}
-            <div className="p-6">{children}</div>
+            <div className="overflow-y-auto p-6">{children}</div>
           </motion.div>
         </div>
       )}

@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Building2, BookOpen, FileText,
-  Bell, LogOut, GraduationCap, ClipboardList,
+  Bell, LogOut, GraduationCap, ClipboardList, Activity,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -17,6 +17,7 @@ const links = [
   { href: '/admin/cases', label: 'Кейсы', icon: FileText },
   { href: '/admin/lessons', label: 'Уроки', icon: BookOpen },
   { href: '/admin/notifications', label: 'Уведомления', icon: Bell },
+  { href: '/admin/activity', label: 'Журнал действий', icon: Activity },
 ]
 
 export function AdminSidebar() {

@@ -1,5 +1,5 @@
 import client from './client'
-import type { Lead } from '@/types'
+import type { Lead, LeadStatus } from '@/types'
 
 export const apiCreateLead = (body: {
   full_name: string
@@ -14,8 +14,11 @@ export const apiCreateLead = (body: {
   comment: body.comment,
 }).then((r) => r.data)
 
-export const apiGetLeads = (params?: Record<string, string>) =>
+export const apiGetLeads = (params?: { status?: LeadStatus }) =>
   client.get<Lead[]>('/leads', { params }).then((r) => r.data)
 
-export const apiUpdateLead = (id: string, body: Partial<Lead>) =>
+export const apiUpdateLead = (id: string, body: { status: LeadStatus }) =>
   client.patch<Lead>(`/leads/${id}`, body).then((r) => r.data)
+
+export const apiDeleteLead = (id: string) =>
+  client.delete(`/leads/${id}`)

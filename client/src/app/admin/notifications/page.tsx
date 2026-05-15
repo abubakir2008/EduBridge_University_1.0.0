@@ -29,6 +29,14 @@ const typeLabels: Record<string, string> = {
   manual: 'Вручную',
 }
 
+const TEMPLATES = [
+  { label: 'Напоминание о дедлайне', text: 'Напоминаем, что дедлайн по текущему этапу приближается. Пожалуйста, выполните все требования вовремя.' },
+  { label: 'Документы готовы', text: 'Ваши документы готовы к отправке. Пожалуйста, свяжитесь с нами для получения инструкций.' },
+  { label: 'Новый этап', text: 'Поздравляем! Вы перешли на следующий этап поступления. Ознакомьтесь с новыми требованиями в личном кабинете.' },
+  { label: 'Позвонить', text: 'Пожалуйста, свяжитесь с вашим менеджером по телефону или в мессенджере — нам нужно уточнить несколько деталей.' },
+  { label: 'Одобрение', text: 'Отличная новость! Ваша заявка одобрена. Ожидайте дальнейших инструкций от нашего менеджера.' },
+]
+
 export default function AdminNotificationsPage() {
   const [showSend, setShowSend] = useState(false)
   const { data: notifications, isLoading } = useQuery({
@@ -37,7 +45,7 @@ export default function AdminNotificationsPage() {
   })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiGetUsers() })
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
@@ -81,14 +89,12 @@ export default function AdminNotificationsPage() {
         </Card>
       )}
 
-      <Modal open={showSend} onClose={() => setShowSend(false)} title="Отправить уведомление">
+      <Modal open={showSend} onClose={() => { setShowSend(false); reset() }} title="Отправить уведомление">
         <form onSubmit={handleSubmit((d) => sendMutation.mutate(d))} className="space-y-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-text-primary">Студент *</label>
-            <select
-              {...register('user_id')}
-              className="h-10 rounded-input border border-slate-200 px-3 text-sm focus:outline-none focus:border-primary"
-            >
+            <select {...register('user_id')}
+              className="h-10 rounded-input border border-slate-200 px-3 text-sm focus:outline-none focus:border-primary">
               <option value="">— выбрать студента —</option>
               {(users ?? []).filter(u => u.role === 'student').map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name} (@{u.login})</option>
@@ -97,14 +103,24 @@ export default function AdminNotificationsPage() {
             {errors.user_id && <p className="text-xs text-error">{errors.user_id.message}</p>}
           </div>
 
+          {/* Templates */}
+          <div>
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Шаблоны</p>
+            <div className="flex flex-wrap gap-2">
+              {TEMPLATES.map((t) => (
+                <button key={t.label} type="button"
+                  onClick={() => setValue('message', t.text, { shouldValidate: true })}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${watch('message') === t.text ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 bg-white text-text-secondary hover:border-primary/40 hover:text-primary'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-text-primary">Сообщение *</label>
-            <textarea
-              rows={4}
-              {...register('message')}
-              placeholder="Текст уведомления..."
-              className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
+            <textarea rows={4} {...register('message')} placeholder="Текст уведомления..."
+              className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
             {errors.message && <p className="text-xs text-error">{errors.message.message}</p>}
           </div>
 

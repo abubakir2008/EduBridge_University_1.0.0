@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import Column, String, Enum, Float, Text, DateTime, JSON, Date
+from sqlalchemy import Column, String, Enum, Float, Integer, Text, DateTime, JSON, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -34,10 +34,17 @@ class User(Base):
     citizenship = Column(String(100), nullable=True)
 
     gpa = Column(Float, nullable=True)
+    ielts_score = Column(Float, nullable=True)
+    sat_score = Column(Integer, nullable=True)
+    desired_specialty = Column(String(255), nullable=True)
     test_scores = Column(JSON, nullable=True)
     achievements = Column(Text, nullable=True)
     country_preference = Column(JSON, nullable=True)
     specialty_preference = Column(String(255), nullable=True)
+    contact_person = Column(String(255), nullable=True)
+    contact_person_phone = Column(String(50), nullable=True)
+    contract_file_id = Column(UUID(as_uuid=True), nullable=True)
+    language_skills = Column(JSON, nullable=True, default=list)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

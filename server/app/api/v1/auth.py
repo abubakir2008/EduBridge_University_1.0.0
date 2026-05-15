@@ -6,6 +6,7 @@ from app.api.deps import get_current_user, require_admin
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, CredentialsResponse
 from app.services import notification_service
 from app.models.user import User
+from app.models.activity_log import ActivityLog
 from app.services.user_service import get_user_or_404
 from app.services import auth_service
 from app.core.limiter import limiter
@@ -37,9 +38,18 @@ def logout(body: RefreshRequest, db: Session = Depends(get_db), _: User = Depend
 def reset_password(
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
     user = get_user_or_404(db, user_id)
     new_password = auth_service.reset_password(db, user)
     notification_service.notify_password_reset(db, user, new_password)
+    log = ActivityLog(
+        admin_id=current_user.id,
+        entity_type="user",
+        entity_id=user_id,
+        action="password_reset",
+        detail=f"Пароль сброшен для {user.full_name}",
+    )
+    db.add(log)
+    db.commit()
     return CredentialsResponse(login=user.login, password=new_password)

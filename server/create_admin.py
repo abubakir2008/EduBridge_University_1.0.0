@@ -25,7 +25,9 @@ engine = create_engine(db_url, echo=False)
 
 def create_admin() -> None:
     with Session(engine) as session:
-        existing = session.execute(select(User).where(User.email == EMAIL)).scalar_one_or_none()
+        existing = session.execute(
+            select(User).where((User.email == EMAIL) | (User.login == LOGIN))
+        ).scalar_one_or_none()
 
         if existing:
             if existing.role != UserRole.admin:

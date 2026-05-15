@@ -12,6 +12,10 @@ from app.models.notification import Notification, NotificationChannel
 from app.models.lesson import Lesson, ContentType
 from app.models.case import Case
 from app.models.lead import Lead, LeadStatus
+from app.models.admin_note import AdminNote
+from app.models.lead_history import LeadHistory
+from app.models.reminder import Reminder
+from app.models.activity_log import ActivityLog
 
 __all__ = [
     "User", "UserRole", "AccountStatus",
@@ -28,4 +32,8 @@ __all__ = [
     "Lesson", "ContentType",
     "Case",
     "Lead", "LeadStatus",
+    "AdminNote",
+    "LeadHistory",
+    "Reminder",
+    "ActivityLog",
 ]

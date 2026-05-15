@@ -1,158 +1,257 @@
 'use client'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiGetLeads, apiUpdateLead } from '@/lib/api/leads'
+import { apiGetLeads, apiUpdateLead, apiDeleteLead } from '@/lib/api/leads'
 import { apiCreateUser } from '@/lib/api/users'
-import { Card } from '@/components/ui/card'
+import { apiGetLeadHistory } from '@/lib/api/admin'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
-import { Input } from '@/components/ui/input'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { RefreshCw, Trash2, UserPlus, MessageCircle, History } from 'lucide-react'
 import type { Lead } from '@/types'
 
-const statusVariant = { new: 'warning', contacted: 'default', registered: 'success' } as const
-const statusLabels = { new: 'Новая', contacted: 'Связались', registered: 'Зарегистрирован' }
+const statusVariant = {
+  new: 'warning',
+  contacted: 'default',
+  registered: 'success',
+  rejected: 'danger',
+} as const
 
-const createSchema = z.object({
-  full_name: z.string().min(2),
-  phone: z.string().min(7),
-  email: z.string().email().optional().or(z.literal('')),
-  citizenship: z.string().optional(),
-})
+const statusLabels: Record<string, string> = {
+  new: 'Новая',
+  contacted: 'Связались',
+  registered: 'Одобрена',
+  rejected: 'Отклонена',
+}
 
-type CreateForm = z.infer<typeof createSchema>
+function whatsappLink(contact: string) {
+  const phone = contact.split('/')[0].trim()
+  const digits = phone.replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : null
+}
+
+// ─── History modal ───────────────────────────────────────────────────────────
+function LeadHistoryModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ['lead-history', lead.id],
+    queryFn: () => apiGetLeadHistory(lead.id),
+  })
+
+  return (
+    <Modal open onClose={onClose} title={`История: ${lead.name}`} maxWidth="max-w-md">
+      <div className="space-y-3">
+        <div className="mb-1">
+          <p className="text-sm text-text-secondary">{lead.contact}</p>
+        </div>
+        {isLoading ? (
+          <p className="text-sm text-text-muted">Загрузка...</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-text-muted">История пуста — статус не изменялся</p>
+        ) : (
+          <ol className="relative border-l border-slate-200 ml-3 space-y-4">
+            {history.map((h, i) => (
+              <li key={h.id} className="ml-4">
+                <span className={`absolute -left-1.5 mt-1 h-3 w-3 rounded-full border-2 border-white ${i === history.length - 1 ? 'bg-primary' : 'bg-slate-300'}`} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={statusVariant[h.status as keyof typeof statusVariant] ?? 'muted'}>
+                    {statusLabels[h.status] ?? h.status}
+                  </Badge>
+                  <span className="text-xs text-text-muted">
+                    {new Date(h.created_at).toLocaleString('ru', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+function LeadsTable({
+  leads, showActions, creatingId, onApprove, onReject, onDelete, onHistory,
+}: {
+  leads: Lead[]
+  showActions: boolean
+  creatingId: string | null
+  onApprove: (lead: Lead) => void
+  onReject: (id: string) => void
+  onDelete: (id: string) => void
+  onHistory: (lead: Lead) => void
+}) {
+  if (leads.length === 0) {
+    return <p className="py-6 text-center text-sm text-text-muted">Нет заявок</p>
+  }
+
+  return (
+    <table className="w-full text-sm">
+      <thead className="border-b border-slate-100">
+        <tr>
+          {['Имя', 'Телефон / Email', 'Интерес', 'Комментарий', 'Статус', 'Дата', 'Действия'].map((h) => (
+            <th key={h} className="px-4 py-3 text-left text-xs font-medium text-text-muted">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-50">
+        {leads.map((lead) => {
+          const waLink = whatsappLink(lead.contact)
+          const parts = lead.contact.split('/')
+          const phone = parts[0].trim()
+          const email = parts[1]?.trim()
+          return (
+            <tr key={lead.id} className="hover:bg-slate-50/50">
+              <td className="px-4 py-3 font-medium text-text-primary">{lead.name}</td>
+              <td className="px-4 py-3 text-text-secondary">
+                <div className="flex items-start gap-1.5">
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span>{phone}</span>
+                      {waLink && (
+                        <a href={waLink} target="_blank" rel="noopener noreferrer"
+                          className="rounded-full bg-green-50 p-0.5 text-green-600 hover:bg-green-100 transition-colors flex-shrink-0"
+                          title="WhatsApp" onClick={(e) => e.stopPropagation()}>
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    {email && <div className="text-xs text-text-muted">{email}</div>}
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-text-secondary">{lead.country_interest ?? '—'}</td>
+              <td className="px-4 py-3 text-text-secondary max-w-[180px] truncate">{lead.comment ?? '—'}</td>
+              <td className="px-4 py-3">
+                <Badge variant={statusVariant[lead.status]}>{statusLabels[lead.status]}</Badge>
+              </td>
+              <td className="px-4 py-3 text-text-muted">{formatDate(lead.created_at)}</td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  {showActions && (
+                    <>
+                      <button onClick={() => onApprove(lead)} disabled={creatingId === lead.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-wait">
+                        <UserPlus className="h-3 w-3" />
+                        {creatingId === lead.id ? 'Создаём...' : 'Добавить'}
+                      </button>
+                      <button onClick={() => onReject(lead.id)} disabled={creatingId === lead.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                        Отклонить
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => onHistory(lead)} title="История"
+                    className="rounded-lg p-1.5 text-text-muted hover:bg-slate-100 hover:text-primary transition-colors">
+                    <History className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => onDelete(lead.id)}
+                    className="rounded-lg p-1.5 text-text-muted hover:bg-slate-100 hover:text-error transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
 
 export default function LeadsPage() {
   const qc = useQueryClient()
-  const [filter, setFilter] = useState('')
-  const [createModal, setCreateModal] = useState<Lead | null>(null)
+  const [creatingId, setCreatingId] = useState<string | null>(null)
   const [createdCreds, setCreatedCreds] = useState<{ login: string; password: string } | null>(null)
+  const [historyLead, setHistoryLead] = useState<Lead | null>(null)
 
-  const { data: leads, isLoading } = useQuery({
-    queryKey: ['leads', filter],
-    queryFn: () => apiGetLeads(filter ? { status: filter } : undefined),
+  const { data: allLeads = [], isLoading, refetch } = useQuery({
+    queryKey: ['leads'],
+    queryFn: () => apiGetLeads(),
   })
 
+  const newLeads = allLeads.filter((l) => l.status === 'new')
+  const historyLeads = allLeads.filter((l) => l.status !== 'new')
+
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiUpdateLead(id, { status: status as Lead['status'] }),
+    mutationFn: ({ id, status }: { id: string; status: Lead['status'] }) => apiUpdateLead(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
   })
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<CreateForm>({
-    resolver: zodResolver(createSchema),
+  const deleteLead = useMutation({
+    mutationFn: (id: string) => apiDeleteLead(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); toast.success('Заявка удалена') },
   })
 
-  const onCreateAccount = async (data: CreateForm) => {
-    const creds = await apiCreateUser(data)
-    setCreatedCreds(creds)
-    if (createModal) {
-      await updateStatus.mutateAsync({ id: createModal.id, status: 'registered' })
+  const handleApprove = async (lead: Lead) => {
+    setCreatingId(lead.id)
+    try {
+      const phone = lead.contact.split('/')[0].trim()
+      const creds = await apiCreateUser({ full_name: lead.name, phone })
+      await updateStatus.mutateAsync({ id: lead.id, status: 'registered' })
+      setCreatedCreds(creds)
+    } catch {
+      toast.error('Ошибка при создании аккаунта')
+    } finally {
+      setCreatingId(null)
     }
-    reset()
-    setCreateModal(null)
   }
+
+  const handleReject = (id: string) => updateStatus.mutate({ id, status: 'rejected' })
 
   return (
     <div className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Заявки</h1>
-        <div className="flex gap-2">
-          {(['', 'new', 'contacted', 'registered'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                filter === s ? 'bg-primary text-white' : 'bg-white border border-slate-200 text-text-secondary hover:bg-surface'
-              }`}
-            >
-              {s === '' ? 'Все' : statusLabels[s]}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-2xl font-bold text-text-primary">Входящие заявки</h1>
+        <button onClick={() => refetch()}
+          className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+          <RefreshCw className="h-4 w-4" /> Обновить
+        </button>
       </div>
 
-      {isLoading ? (
-        <TableSkeleton />
-      ) : (
-        <Card padding="none">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr>
-                {['Имя', 'Контакт', 'Страна', 'Статус', 'Дата', 'Действия'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-text-muted">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {(leads ?? []).map((lead) => (
-                <tr key={lead.id} className="hover:bg-surface">
-                  <td className="px-4 py-3 font-medium text-text-primary">{lead.name}</td>
-                  <td className="px-4 py-3 text-text-secondary">{lead.contact}</td>
-                  <td className="px-4 py-3 text-text-secondary">{lead.country_interest ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={lead.status}
-                      onChange={(e) => updateStatus.mutate({ id: lead.id, status: e.target.value })}
-                      className="rounded-input border border-slate-200 px-2 py-1 text-xs focus:outline-none"
-                    >
-                      <option value="new">Новая</option>
-                      <option value="contacted">Связались</option>
-                      <option value="registered">Зарегистрирован</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-text-muted">{formatDate(lead.created_at)}</td>
-                  <td className="px-4 py-3">
-                    {lead.status === 'contacted' && (
-                      <Button size="sm" variant="outline" onClick={() => setCreateModal(lead)}>
-                        Создать аккаунт
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+      {isLoading ? <TableSkeleton /> : (
+        <>
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
+              {newLeads.length > 0 && (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-600">
+                  {newLeads.length}
+                </span>
+              )}
+              <h2 className="font-semibold text-text-primary">Новые заявки</h2>
+            </div>
+            <LeadsTable leads={newLeads} showActions creatingId={creatingId}
+              onApprove={handleApprove} onReject={handleReject}
+              onDelete={(id) => deleteLead.mutate(id)} onHistory={setHistoryLead} />
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h2 className="font-semibold text-text-primary">История</h2>
+            </div>
+            <LeadsTable leads={historyLeads} showActions={false} creatingId={null}
+              onApprove={handleApprove} onReject={handleReject}
+              onDelete={(id) => deleteLead.mutate(id)} onHistory={setHistoryLead} />
+          </div>
+        </>
       )}
 
-      {/* Create student modal */}
-      <Modal open={!!createModal} onClose={() => setCreateModal(null)} title="Создать аккаунт студента">
-        <form onSubmit={handleSubmit(onCreateAccount)} className="space-y-4">
-          <Input label="ФИО *" defaultValue={createModal?.name} error={errors.full_name?.message} {...register('full_name')} />
-          <Input label="Телефон *" defaultValue={createModal?.contact} error={errors.phone?.message} {...register('phone')} />
-          <Input label="Email" {...register('email')} />
-          <Input label="Гражданство" {...register('citizenship')} />
-          <Button type="submit" className="w-full" loading={isSubmitting}>Создать</Button>
-        </form>
-      </Modal>
+      {historyLead && <LeadHistoryModal lead={historyLead} onClose={() => setHistoryLead(null)} />}
 
-      {/* Credentials modal */}
       <Modal open={!!createdCreds} onClose={() => setCreatedCreds(null)} title="Данные для входа">
         {createdCreds && (
           <div className="space-y-4">
-            <p className="text-sm text-warning font-medium">⚠️ Сохраните данные — пароль показывается один раз!</p>
-            {[
-              { label: 'Логин', value: createdCreds.login },
-              { label: 'Пароль', value: createdCreds.password },
-            ].map(({ label, value }) => (
+            <p className="text-sm text-warning font-medium">Сохраните данные — пароль показывается один раз!</p>
+            {[{ label: 'Логин', value: createdCreds.login }, { label: 'Пароль', value: createdCreds.password }].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
                 <div>
                   <p className="text-xs text-text-muted">{label}</p>
                   <p className="font-mono font-semibold text-text-primary">{value}</p>
                 </div>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(value); toast.success(`${label} скопирован`) }}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Копировать
-                </button>
+                <button onClick={() => { navigator.clipboard.writeText(value); toast.success(`${label} скопирован`) }}
+                  className="text-xs text-primary hover:underline">Копировать</button>
               </div>
             ))}
             <Button className="w-full" onClick={() => setCreatedCreds(null)}>Закрыть</Button>

@@ -13,6 +13,7 @@ class UniversityCreate(BaseModel):
     rating: Optional[int] = None
     description: Optional[str] = None
     logo_file_id: Optional[uuid.UUID] = None
+    video_url: Optional[str] = None
 
 
 class UniversityUpdate(BaseModel):
@@ -25,6 +26,7 @@ class UniversityUpdate(BaseModel):
     rating: Optional[int] = None
     description: Optional[str] = None
     logo_file_id: Optional[uuid.UUID] = None
+    video_url: Optional[str] = None
 
 
 class UniversityResponse(BaseModel):
@@ -38,6 +40,9 @@ class UniversityResponse(BaseModel):
     rating: Optional[int]
     description: Optional[str]
     logo_file_id: Optional[uuid.UUID]
+    photo_file_ids: Optional[List[str]] = None
+    video_url: Optional[str] = None
+    video_file_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
 

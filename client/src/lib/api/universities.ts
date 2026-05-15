@@ -39,3 +39,46 @@ export const apiCreateRequirement = (stageId: string, body: Partial<Requirement>
 
 export const apiDeleteRequirement = (stageId: string, reqId: string) =>
   client.delete(`/stages/${stageId}/requirements/${reqId}`)
+
+// Фото университета
+export const apiUploadUniversityPhoto = (universityId: string, file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return client.post<{ file_id: string }>(
+    `/universities/${universityId}/photos`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  ).then((r) => r.data)
+}
+
+export const getUniversityPhotoUrl = (universityId: string, fileId: string) =>
+  `/api/universities/${universityId}/photos/${fileId}`
+
+export const apiDeleteUniversityPhoto = (universityId: string, fileId: string) =>
+  client.delete(`/universities/${universityId}/photos/${fileId}`)
+
+// Видео университета
+export const apiUploadUniversityVideo = (
+  universityId: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+) => {
+  const form = new FormData()
+  form.append('file', file)
+  return client.post<{ file_id: string }>(
+    `/universities/${universityId}/video`,
+    form,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total))
+      },
+    },
+  ).then((r) => r.data)
+}
+
+export const getUniversityVideoUrl = (universityId: string) =>
+  `/api/universities/${universityId}/video`
+
+export const apiDeleteUniversityVideo = (universityId: string) =>
+  client.delete(`/universities/${universityId}/video`)

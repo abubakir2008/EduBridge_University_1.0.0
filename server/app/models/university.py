@@ -18,8 +18,11 @@ class University(Base):
     rating = Column(Integer, nullable=True)
     description = Column(Text, nullable=True)
     logo_file_id = Column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
+    photo_file_ids = Column(JSON, nullable=True, default=list)   # list[str] — UUID строки
+    video_url = Column(String(500), nullable=True)               # YouTube или другая ссылка
+    video_file_id = Column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
 
-    logo_file = relationship("File")
+    logo_file = relationship("File", foreign_keys=[logo_file_id])
     stages = relationship("Stage", back_populates="university", cascade="all, delete-orphan", order_by="Stage.order")
     favourites = relationship("Favourite", back_populates="university", cascade="all, delete-orphan")
     student_progress = relationship("StudentProgress", back_populates="university")

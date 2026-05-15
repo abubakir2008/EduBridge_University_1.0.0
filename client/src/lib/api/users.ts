@@ -21,3 +21,42 @@ export const apiUpdateUser = (id: string, body: Partial<User>) =>
 
 export const apiUpdateUserStatus = (id: string, status: string) =>
   client.patch<User>(`/users/${id}/status`, { account_status: status }).then((r) => r.data)
+
+export const apiDeleteUser = (id: string) =>
+  client.delete(`/users/${id}`)
+
+export const apiUploadContract = (userId: string, file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return client.post(
+    `/users/${userId}/contract`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+}
+
+export const apiGetContractBlob = (userId: string) =>
+  client.get(`/users/${userId}/contract`, { responseType: 'blob' }).then((r) => ({
+    blob: r.data as Blob,
+    type: (r.headers['content-type'] as string) || 'application/octet-stream',
+    filename: (r.headers['content-disposition'] as string | undefined)
+      ?.match(/filename="?([^"]+)"?/)?.[1] ?? 'contract',
+  }))
+
+// Admin notes
+export interface AdminNote {
+  id: string
+  user_id: string
+  admin_id: string | null
+  text: string
+  created_at: string
+}
+
+export const apiGetNotes = (userId: string) =>
+  client.get<AdminNote[]>(`/users/${userId}/notes`).then((r) => r.data)
+
+export const apiCreateNote = (userId: string, text: string) =>
+  client.post<AdminNote>(`/users/${userId}/notes`, { text }).then((r) => r.data)
+
+export const apiDeleteNote = (userId: string, noteId: string) =>
+  client.delete(`/users/${userId}/notes/${noteId}`)

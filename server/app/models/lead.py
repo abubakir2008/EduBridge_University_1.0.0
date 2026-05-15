@@ -10,6 +10,7 @@ class LeadStatus(str, enum.Enum):
     new = "new"
     contacted = "contacted"
     registered = "registered"
+    rejected = "rejected"
 
 
 class Lead(Base):

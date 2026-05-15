@@ -5,6 +5,11 @@ import uuid
 from app.models.user import UserRole, AccountStatus
 
 
+class LanguageSkill(BaseModel):
+    language: str
+    level: str  # A1 A2 B1 B2 C1 C2 Native
+
+
 class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
@@ -13,10 +18,16 @@ class UserCreate(BaseModel):
     date_of_birth: Optional[date] = None
     citizenship: Optional[str] = None
     gpa: Optional[float] = None
+    ielts_score: Optional[float] = None
+    sat_score: Optional[int] = None
+    desired_specialty: Optional[str] = None
     test_scores: Optional[Any] = None
     achievements: Optional[str] = None
     country_preference: Optional[List[str]] = None
     specialty_preference: Optional[str] = None
+    contact_person: Optional[str] = None
+    contact_person_phone: Optional[str] = None
+    language_skills: Optional[List[LanguageSkill]] = None
 
 
 class UserUpdate(BaseModel):
@@ -26,10 +37,16 @@ class UserUpdate(BaseModel):
     date_of_birth: Optional[date] = None
     citizenship: Optional[str] = None
     gpa: Optional[float] = None
+    ielts_score: Optional[float] = None
+    sat_score: Optional[int] = None
+    desired_specialty: Optional[str] = None
     test_scores: Optional[Any] = None
     achievements: Optional[str] = None
     country_preference: Optional[List[str]] = None
     specialty_preference: Optional[str] = None
+    contact_person: Optional[str] = None
+    contact_person_phone: Optional[str] = None
+    language_skills: Optional[List[LanguageSkill]] = None
 
 
 class UserStatusUpdate(BaseModel):
@@ -47,10 +64,17 @@ class UserResponse(BaseModel):
     date_of_birth: Optional[date]
     citizenship: Optional[str]
     gpa: Optional[float]
+    ielts_score: Optional[float]
+    sat_score: Optional[int]
+    desired_specialty: Optional[str]
     test_scores: Optional[Any]
     achievements: Optional[str]
     country_preference: Optional[List[str]]
     specialty_preference: Optional[str]
+    contact_person: Optional[str]
+    contact_person_phone: Optional[str]
+    contract_file_id: Optional[uuid.UUID]
+    language_skills: Optional[List[Any]]
     created_at: datetime
 
     model_config = {"from_attributes": True}
