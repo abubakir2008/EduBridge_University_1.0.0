@@ -123,11 +123,16 @@ def advance_stage(db: Session, user: User, progress: StudentProgress) -> Student
     return progress
 
 
-def get_deadline_status(stage: Stage) -> dict | None:
-    if not stage or not stage.deadline:
+def get_deadline_status(stage: Stage, student_deadline=None) -> dict | None:
+    # student_deadline — индивидуальная дата дедлайна студента (date объект)
+    if student_deadline:
+        today = date.today()
+        delta = (student_deadline - today).days
+    elif stage and stage.deadline_days is not None:
+        # Нет индивидуального — используем кол-во дней как ориентир (от создания прогресса)
+        return {"status": "on_track", "days_left": stage.deadline_days}
+    else:
         return None
-    today = date.today()
-    delta = (stage.deadline - today).days
     if delta < 0:
         return {"status": "overdue", "days_left": None}
     elif delta <= 7:

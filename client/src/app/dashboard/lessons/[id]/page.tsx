@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, FileText, Video, BookOpen, Play, Eye, X, Clock, AlertCircle,
+  ArrowLeft, FileText, Video, BookOpen, Play, Eye, X, Clock, AlertCircle, ImageIcon,
 } from 'lucide-react'
 import { apiGetLesson } from '@/lib/api/lessons'
 import { apiGetFileUrl } from '@/lib/api/files'
@@ -83,6 +83,8 @@ export default function LessonPage({ params }: { params: Promise<{ id: string }>
     ? Video
     : lesson.content_type === 'document'
     ? FileText
+    : lesson.content_type === 'image'
+    ? ImageIcon
     : BookOpen
 
   const ContentIcon = contentIcon
@@ -206,6 +208,24 @@ export default function LessonPage({ params }: { params: Promise<{ id: string }>
         </>
       )}
 
+      {/* Image */}
+      {lesson.content_type === 'image' && fileUrl && (
+        <motion.div
+          className="rounded-card overflow-hidden border border-slate-100 shadow-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={fileUrl}
+            alt={lesson.title}
+            className="w-full object-contain max-h-[70vh]"
+            onContextMenu={e => e.preventDefault()}
+          />
+        </motion.div>
+      )}
+
       {/* Text content */}
       {lesson.content && (
         <motion.div
@@ -252,7 +272,7 @@ export default function LessonPage({ params }: { params: Promise<{ id: string }>
         </motion.div>
       )}
 
-      {!lesson.content && !fileUrl && (
+      {!lesson.content && !fileUrl && lesson.content_type !== 'image' && (
         <div className="rounded-card border border-slate-100 shadow-card p-12 text-center">
           <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <p className="text-text-muted">Контент урока ещё не добавлен</p>

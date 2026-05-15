@@ -20,10 +20,10 @@ export const apiDeleteUniversity = (id: string) =>
   client.delete(`/universities/${id}`)
 
 export const apiGetStages = (universityId: string) =>
-  client.get<Stage[]>(`/stages`, { params: { university_id: universityId } }).then((r) => r.data)
+  client.get<Stage[]>(`/universities/${universityId}/stages`).then((r) => r.data)
 
-export const apiCreateStage = (body: Partial<Stage>) =>
-  client.post<Stage>('/stages', body).then((r) => r.data)
+export const apiCreateStage = (body: Partial<Stage> & { university_id: string }) =>
+  client.post<Stage>(`/universities/${body.university_id}/stages`, body).then((r) => r.data)
 
 export const apiUpdateStage = (id: string, body: Partial<Stage>) =>
   client.patch<Stage>(`/stages/${id}`, body).then((r) => r.data)

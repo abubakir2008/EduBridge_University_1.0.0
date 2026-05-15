@@ -501,7 +501,20 @@ export default function AdminUniversityPage() {
             <textarea rows={2} {...stageForm.register('description')}
               className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
           </div>
-          <Input label="Дедлайн" type="date" {...stageForm.register('deadline')} />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-text-primary">Срок выполнения</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                placeholder="30"
+                {...stageForm.register('deadline_days', { valueAsNumber: true })}
+                className="w-28 rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <span className="text-sm text-text-muted">дней с момента зачисления</span>
+            </div>
+          </div>
           <Button type="submit" className="w-full" loading={createStage.isPending}>Создать</Button>
         </form>
       </Modal>
@@ -559,7 +572,11 @@ function StageRow({ stage, expanded, onToggle, onDelete, onAddReq }: {
             {stage.order}
           </span>
           <span className="font-medium text-text-primary">{stage.name}</span>
-          {stage.deadline && <span className="text-xs text-text-muted">{stage.deadline}</span>}
+          {stage.deadline_days && (
+            <span className="text-xs text-text-muted bg-slate-100 rounded-full px-2 py-0.5">
+              {stage.deadline_days} дн.
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-error hover:text-red-700 p-1">
@@ -580,7 +597,9 @@ function StageRow({ stage, expanded, onToggle, onDelete, onAddReq }: {
             <div key={req.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 mb-2">
               <div>
                 <span className="text-sm font-medium text-text-primary">{req.name}</span>
-                <span className="ml-2 text-xs text-text-muted">({req.type})</span>
+                <span className="ml-2 text-xs text-text-muted">
+                  ({req.type === 'file_upload' ? 'загрузка файла' : 'чекбокс'})
+                </span>
                 {req.is_required && <span className="ml-2 text-xs text-error">*обязательное</span>}
               </div>
               <button onClick={() => deleteReq.mutate({ stageId: stage.id, reqId: req.id })} className="text-error hover:text-red-700 p-1">

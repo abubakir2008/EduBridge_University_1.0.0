@@ -7,7 +7,7 @@ from app.models.lesson import ContentType
 class LessonCreate(BaseModel):
     title: str
     content_type: ContentType = ContentType.text
-    body: Optional[str] = None
+    content: Optional[str] = None
     file_id: Optional[uuid.UUID] = None
     stage_id: Optional[uuid.UUID] = None
     order: int = 1
@@ -16,7 +16,7 @@ class LessonCreate(BaseModel):
 class LessonUpdate(BaseModel):
     title: Optional[str] = None
     content_type: Optional[ContentType] = None
-    body: Optional[str] = None
+    content: Optional[str] = None
     file_id: Optional[uuid.UUID] = None
     stage_id: Optional[uuid.UUID] = None
     order: Optional[int] = None
@@ -26,7 +26,7 @@ class LessonResponse(BaseModel):
     id: uuid.UUID
     title: str
     content_type: ContentType
-    body: Optional[str]
+    content: Optional[str]
     file_id: Optional[uuid.UUID]
     stage_id: Optional[uuid.UUID]
     order: int

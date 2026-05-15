@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Text, Date, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,7 +14,7 @@ class Stage(Base):
     name = Column(String(255), nullable=False)
     order = Column(Integer, nullable=False, default=1)
     description = Column(Text, nullable=True)
-    deadline = Column(Date, nullable=True)
+    deadline_days = Column(Integer, nullable=True)  # кол-во дней на выполнение этапа
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     university = relationship("University", back_populates="stages")

@@ -75,7 +75,7 @@ export interface Stage {
   name: string
   description?: string
   order: number
-  deadline?: string
+  deadline_days?: number | null
 }
 
 export interface Requirement {
@@ -116,7 +116,7 @@ export interface Lesson {
   id: string
   stage_id: string
   title: string
-  content_type: 'text' | 'video' | 'document'
+  content_type: 'text' | 'video' | 'document' | 'image'
   content?: string
   file_id?: string
   order: number

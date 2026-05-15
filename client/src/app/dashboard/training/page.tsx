@@ -132,7 +132,7 @@ export default function TrainingPage() {
               <h2 className="text-lg font-semibold text-text-primary">{stage.name}</h2>
               {stage.description && <p className="text-sm text-text-secondary mt-1">{stage.description}</p>}
             </div>
-            {stage.deadline && (
+            {stage.deadline_status && (
               <div className={cn('flex items-center gap-1.5 text-sm font-medium', deadlineColor)}>
                 {stage.deadline_status === 'overdue' ? (
                   <AlertTriangle className="h-4 w-4" />

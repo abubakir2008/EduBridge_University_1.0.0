@@ -57,7 +57,7 @@ def create_stage(db: Session, university_id: uuid.UUID, data: StageCreate) -> St
         name=data.name,
         order=data.order,
         description=data.description,
-        deadline=data.deadline,
+        deadline_days=data.deadline_days,
     )
     db.add(stage)
     db.flush()

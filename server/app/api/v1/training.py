@@ -31,7 +31,14 @@ def get_progress(
     progress = training_service.get_progress_or_404(db, user_id)
     response = StudentProgressResponse.model_validate(progress)
     if progress.current_stage:
-        ds = training_service.get_deadline_status(progress.current_stage)
+        student_dl = db.query(StudentStageDeadline).filter(
+            StudentStageDeadline.student_progress_id == progress.id,
+            StudentStageDeadline.stage_id == progress.current_stage_id,
+        ).first()
+        ds = training_service.get_deadline_status(
+            progress.current_stage,
+            student_deadline=student_dl.deadline if student_dl else None,
+        )
         if ds:
             response.deadline_status = DeadlineStatus(**ds)
     return response

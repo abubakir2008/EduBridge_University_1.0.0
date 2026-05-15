@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import date, datetime
+from datetime import datetime
 import uuid
 from app.models.requirement import RequirementType
 
@@ -9,14 +9,14 @@ class RequirementCreate(BaseModel):
     name: str
     description: Optional[str] = None
     type: RequirementType = RequirementType.checkbox
-    required: bool = True
+    is_required: bool = True
 
 
 class RequirementUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     type: Optional[RequirementType] = None
-    required: Optional[bool] = None
+    is_required: Optional[bool] = None
 
 
 class RequirementResponse(BaseModel):
@@ -25,16 +25,16 @@ class RequirementResponse(BaseModel):
     name: str
     description: Optional[str]
     type: RequirementType
-    required: bool
+    is_required: bool = Field(False, alias='required')
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class StageCreate(BaseModel):
     name: str
     order: int = 1
     description: Optional[str] = None
-    deadline: Optional[date] = None
+    deadline_days: Optional[int] = None
     requirements: Optional[List[RequirementCreate]] = None
 
 
@@ -42,7 +42,7 @@ class StageUpdate(BaseModel):
     name: Optional[str] = None
     order: Optional[int] = None
     description: Optional[str] = None
-    deadline: Optional[date] = None
+    deadline_days: Optional[int] = None
 
 
 class StageResponse(BaseModel):
@@ -51,7 +51,7 @@ class StageResponse(BaseModel):
     name: str
     order: int
     description: Optional[str]
-    deadline: Optional[date]
+    deadline_days: Optional[int]
     created_at: datetime
     requirements: List[RequirementResponse] = []
 

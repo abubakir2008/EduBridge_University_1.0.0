@@ -1,27 +1,27 @@
 'use client'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { UseFormRegister, UseFormHandleSubmit, FieldValues } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { Plus, Pencil, Trash2, ArrowLeft, BookOpen, ChevronUp, ChevronDown, RefreshCw, CheckCircle } from 'lucide-react'
+import {
+  Plus, Pencil, Trash2, ArrowLeft, BookOpen, ChevronUp, ChevronDown,
+  RefreshCw, CheckCircle, Video, FileText, Image, AlignLeft,
+} from 'lucide-react'
 import { apiGetLessons, apiCreateLesson, apiUpdateLesson, apiDeleteLesson } from '@/lib/api/lessons'
 import { apiGetUniversities, apiGetStages } from '@/lib/api/universities'
-import { apiUploadFile } from '@/lib/api/files'
+import { apiUploadFile, apiGetFileUrl } from '@/lib/api/files'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { toast } from 'sonner'
-import { useForm } from 'react-hook-form'
 import type { Lesson } from '@/types'
 
-const CONTENT_TYPE_LABELS: Record<string, string> = {
-  text: 'Текст', video: 'Видео', document: 'Документ',
-}
-const CONTENT_TYPE_COLORS: Record<string, string> = {
-  text: 'bg-blue-50 text-blue-600',
-  video: 'bg-amber-50 text-amber-600',
-  document: 'bg-violet-50 text-violet-600',
-}
+const CONTENT_TYPES = [
+  { value: 'video', label: 'Видео', icon: Video, color: 'bg-amber-50 text-amber-600 border-amber-200' },
+  { value: 'image', label: 'Фото / изображение', icon: Image, color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+  { value: 'document', label: 'Документ', icon: FileText, color: 'bg-violet-50 text-violet-600 border-violet-200' },
+  { value: 'text', label: 'Только текст', icon: AlignLeft, color: 'bg-blue-50 text-blue-600 border-blue-200' },
+] as const
 
 type Stage = { id: string; name: string; order: number; university_id: string }
 type University = { id: string; name: string; country: string }
@@ -33,8 +33,17 @@ export default function AdminLessonsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Lesson | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const [formTitle, setFormTitle] = useState('')
+  const [formStageId, setFormStageId] = useState('')
+  const [formContentType, setFormContentType] = useState<Lesson['content_type']>('video')
+  const [formContent, setFormContent] = useState('')
+  const [formFileId, setFormFileId] = useState('')
+  const [formOrder, setFormOrder] = useState(1)
+  const [uploading, setUploading] = useState(false)
+  const [uploadedFileName, setUploadedFileName] = useState('')
+  const [formUniId, setFormUniId] = useState('')
 
   const { data: lessons = [], isLoading: lessonsLoading } = useQuery({
     queryKey: ['lessons'],
@@ -49,19 +58,20 @@ export default function AdminLessonsPage() {
     queryFn: () => apiGetStages(selectedUni!.id),
     enabled: !!selectedUni,
   })
-
-  const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting } } = useForm({
-    values: editing ?? undefined,
+  const { data: formStages = [] } = useQuery({
+    queryKey: ['stages-by-uni', formUniId],
+    queryFn: () => apiGetStages(formUniId),
+    enabled: !!formUniId,
   })
-  const contentType = watch('content_type')
 
   const saveMutation = useMutation({
-    mutationFn: (d: Record<string, unknown>) =>
+    mutationFn: (d: Partial<Lesson>) =>
       editing ? apiUpdateLesson(editing.id, d) : apiCreateLesson(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lessons'] })
       toast.success(editing ? 'Урок обновлён' : 'Урок добавлен')
-      setShowForm(false); setEditing(null); reset()
+      setShowForm(false)
+      setEditing(null)
     },
     onError: () => toast.error('Ошибка сохранения'),
   })
@@ -75,7 +85,8 @@ export default function AdminLessonsPage() {
     setUploading(true)
     try {
       const uploaded = await apiUploadFile(file, 'lessons')
-      setValue('file_id', uploaded.id)
+      setFormFileId(uploaded.id)
+      setUploadedFileName(file.name)
       toast.success('Файл загружен')
     } catch { toast.error('Ошибка загрузки') }
     finally { setUploading(false) }
@@ -105,9 +116,43 @@ export default function AdminLessonsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    reset({ stage_id: selectedStage?.id, content_type: 'text' })
+    setFormTitle('')
+    setFormStageId(selectedStage?.id ?? '')
+    setFormUniId(selectedUni?.id ?? '')
+    setFormContentType('video')
+    setFormContent('')
+    setFormFileId('')
+    setFormOrder(stageLessons.length + 1)
+    setUploadedFileName('')
     setShowForm(true)
   }
+
+  const openEdit = (l: Lesson) => {
+    setEditing(l)
+    setFormTitle(l.title)
+    setFormStageId(l.stage_id)
+    setFormContentType(l.content_type)
+    setFormContent(l.content ?? '')
+    setFormFileId(l.file_id ?? '')
+    setFormOrder(l.order)
+    setUploadedFileName('')
+    setShowForm(true)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formTitle.trim()) { toast.error('Введите название'); return }
+    saveMutation.mutate({
+      title: formTitle,
+      stage_id: formStageId || undefined,
+      content_type: formContentType,
+      content: ['text'].includes(formContentType) ? formContent : undefined,
+      file_id: ['video', 'document', 'image'].includes(formContentType) ? (formFileId || undefined) : undefined,
+      order: formOrder,
+    } as Partial<Lesson>)
+  }
+
+  const ctInfo = (ct: string) => CONTENT_TYPES.find(t => t.value === ct)
 
   /* ── View: select university ── */
   if (!selectedUni) return (
@@ -117,30 +162,26 @@ export default function AdminLessonsPage() {
         <p className="text-text-muted text-center py-20">Университетов пока нет</p>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {universities.map(uni => {
-            const count = lessons.filter(l => stages.some(s => s.id === l.stage_id && s.university_id === uni.id) || false).length
-            return (
-              <motion.button
-                key={uni.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => setSelectedUni(uni)}
-                className="bg-white border border-slate-100 rounded-card p-6 text-left hover:border-primary/40 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="text-xs bg-slate-100 text-text-muted px-2 py-1 rounded-full">{uni.country}</span>
+          {universities.map(uni => (
+            <motion.button
+              key={uni.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setSelectedUni(uni)}
+              className="bg-white border border-slate-100 rounded-card p-6 text-left hover:border-primary/40 hover:shadow-md transition-all group"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <BookOpen className="w-5 h-5 text-primary" />
                 </div>
-                <p className="font-semibold text-text-primary mb-1 line-clamp-2">{uni.name}</p>
-                <p className="text-text-muted text-xs">{lessonsLoading ? '...' : `${lessons.length} уроков всего`}</p>
-              </motion.button>
-            )
-          })}
+                <span className="text-xs bg-slate-100 text-text-muted px-2 py-1 rounded-full">{uni.country}</span>
+              </div>
+              <p className="font-semibold text-text-primary mb-1 line-clamp-2">{uni.name}</p>
+              <p className="text-text-muted text-xs">{lessonsLoading ? '...' : `${lessons.length} уроков всего`}</p>
+            </motion.button>
+          ))}
         </div>
       )}
-
     </div>
   )
 
@@ -212,52 +253,57 @@ export default function AdminLessonsPage() {
             </tr>
           </thead>
           <tbody>
-            {stageLessons.map((l, idx) => (
-              <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                <td className="px-4 py-3 text-text-muted w-10">{idx + 1}</td>
-                <td className="px-4 py-3 font-medium text-text-primary">{l.title}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${CONTENT_TYPE_COLORS[l.content_type] ?? 'bg-slate-100 text-slate-500'}`}>
-                    {CONTENT_TYPE_LABELS[l.content_type] ?? l.content_type}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button onClick={() => copyId(l.id)}
-                    className="flex items-center gap-1.5 text-xs font-mono text-text-muted hover:text-primary transition-colors"
-                    title="Скопировать ID">
-                    {l.id.slice(0, 8)}…
-                    {copiedId === l.id
-                      ? <CheckCircle className="w-3 h-3 text-emerald-500" />
-                      : <RefreshCw className="w-3 h-3" />}
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${l.file_id ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                    {l.file_id ? 'Есть' : 'Нет'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => move(l, 'up')} disabled={idx === 0}
-                      className="p-1 text-slate-300 hover:text-primary disabled:opacity-20 rounded transition-colors">
-                      <ChevronUp className="w-4 h-4" />
+            {stageLessons.map((l, idx) => {
+              const ct = ctInfo(l.content_type)
+              const Icon = ct?.icon ?? BookOpen
+              return (
+                <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 text-text-muted w-10">{idx + 1}</td>
+                  <td className="px-4 py-3 font-medium text-text-primary">{l.title}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${ct?.color ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      <Icon className="w-3 h-3" />
+                      {ct?.label ?? l.content_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => copyId(l.id)}
+                      className="flex items-center gap-1.5 text-xs font-mono text-text-muted hover:text-primary transition-colors"
+                      title="Скопировать ID">
+                      {l.id.slice(0, 8)}…
+                      {copiedId === l.id
+                        ? <CheckCircle className="w-3 h-3 text-emerald-500" />
+                        : <RefreshCw className="w-3 h-3" />}
                     </button>
-                    <button onClick={() => move(l, 'down')} disabled={idx === stageLessons.length - 1}
-                      className="p-1 text-slate-300 hover:text-primary disabled:opacity-20 rounded transition-colors">
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => { setEditing(l); setShowForm(true) }}
-                      className="p-1.5 text-slate-400 hover:text-primary rounded transition-colors">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setConfirmDelete(l.id)}
-                      className="p-1.5 text-slate-400 hover:text-error rounded transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${l.file_id ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                      {l.file_id ? 'Есть' : 'Нет'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => move(l, 'up')} disabled={idx === 0}
+                        className="p-1 text-slate-300 hover:text-primary disabled:opacity-20 rounded transition-colors">
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => move(l, 'down')} disabled={idx === stageLessons.length - 1}
+                        className="p-1 text-slate-300 hover:text-primary disabled:opacity-20 rounded transition-colors">
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => openEdit(l)}
+                        className="p-1.5 text-slate-400 hover:text-primary rounded transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setConfirmDelete(l.id)}
+                        className="p-1.5 text-slate-400 hover:text-error rounded transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {stageLessons.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-12 text-center text-text-muted">Уроков ещё нет</td></tr>
             )}
@@ -266,17 +312,151 @@ export default function AdminLessonsPage() {
       </div>
 
       {/* Form modal */}
-      <Modal open={showForm} onClose={() => { setShowForm(false); setEditing(null) }}
-        title={editing ? 'Редактировать урок' : 'Добавить урок'} maxWidth="max-w-xl">
-        <LessonForm
-          register={register as unknown as UseFormRegister<FieldValues>} handleSubmit={handleSubmit as unknown as UseFormHandleSubmit<FieldValues>} contentType={contentType}
-          uploading={uploading} isSubmitting={isSubmitting} editing={editing}
-          universities={universities} stages={stages}
-          onUniChange={() => {}}
-          onFileUpload={handleFileUpload}
-          onSubmit={(d) => saveMutation.mutate(d as Record<string, unknown>)}
-          isPending={saveMutation.isPending}
-        />
+      <Modal
+        open={showForm}
+        onClose={() => { setShowForm(false); setEditing(null) }}
+        title={editing ? 'Редактировать урок' : 'Добавить урок'}
+        maxWidth="max-w-xl"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Название *"
+            value={formTitle}
+            onChange={e => setFormTitle(e.target.value)}
+            placeholder="Название урока"
+          />
+
+          {/* University + stage selectors (only in create mode) */}
+          {!editing && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Курс</label>
+                <select
+                  value={formUniId}
+                  onChange={e => { setFormUniId(e.target.value); setFormStageId('') }}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                >
+                  <option value="">Выберите курс</option>
+                  {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+              {formUniId && (
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">Этап</label>
+                  <select
+                    value={formStageId}
+                    onChange={e => setFormStageId(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    disabled={formStages.length === 0}
+                  >
+                    <option value="">— выбрать этап —</option>
+                    {formStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Content type selector — 4 buttons */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">Тип контента</label>
+            <div className="grid grid-cols-2 gap-2">
+              {CONTENT_TYPES.map(ct => {
+                const Icon = ct.icon
+                const active = formContentType === ct.value
+                return (
+                  <button
+                    key={ct.value}
+                    type="button"
+                    onClick={() => { setFormContentType(ct.value); setFormFileId(''); setUploadedFileName('') }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                      active
+                        ? 'border-primary bg-primary text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-primary/40 hover:bg-primary/5'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    {ct.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Rich text editor for text type */}
+          {formContentType === 'text' && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Текст урока</label>
+              <RichTextEditor
+                value={formContent}
+                onChange={setFormContent}
+                minHeight="200px"
+              />
+            </div>
+          )}
+
+          {/* File upload for video / document / image */}
+          {(formContentType === 'video' || formContentType === 'document' || formContentType === 'image') && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                {formContentType === 'video' && 'Видео — загрузить файл'}
+                {formContentType === 'image' && 'Фото / изображение'}
+                {formContentType === 'document' && 'Документ (PDF)'}
+              </label>
+              <label className={`flex items-center gap-3 cursor-pointer border border-dashed rounded-lg px-4 py-3 transition-colors ${
+                uploadedFileName
+                  ? 'border-emerald-300 bg-emerald-50'
+                  : 'border-slate-300 hover:border-primary/50 hover:bg-primary/5'
+              }`}>
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  {formContentType === 'video' && <Video className="w-4 h-4 text-primary" />}
+                  {formContentType === 'image' && <Image className="w-4 h-4 text-primary" />}
+                  {formContentType === 'document' && <FileText className="w-4 h-4 text-primary" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary truncate">
+                    {uploading ? 'Загрузка...' : uploadedFileName || 'Нажмите чтобы выбрать файл'}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {formContentType === 'video' && 'MP4, WebM — до 1GB'}
+                    {formContentType === 'image' && 'JPG, PNG, WebP'}
+                    {formContentType === 'document' && 'PDF'}
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept={
+                    formContentType === 'video' ? 'video/*'
+                    : formContentType === 'image' ? 'image/*'
+                    : '.pdf'
+                  }
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }}
+                />
+              </label>
+              {uploading && (
+                <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
+                </div>
+              )}
+              {/* External URL for video */}
+              {formContentType === 'video' && (
+                <p className="text-xs text-text-muted mt-2 text-center">или вставьте внешний URL (YouTube и т.д.)</p>
+              )}
+            </div>
+          )}
+
+          <Input
+            label="Порядок"
+            type="number"
+            value={formOrder}
+            onChange={e => setFormOrder(Number(e.target.value))}
+          />
+
+          <Button type="submit" className="w-full" loading={saveMutation.isPending || uploading}>
+            {editing ? 'Сохранить' : 'Создать урок'}
+          </Button>
+        </form>
       </Modal>
 
       {/* Delete confirm */}
@@ -289,99 +469,5 @@ export default function AdminLessonsPage() {
         </div>
       </Modal>
     </div>
-  )
-}
-
-function LessonForm({ register, handleSubmit, contentType, uploading, isSubmitting, editing,
-  universities, stages, onUniChange, onFileUpload, onSubmit, isPending }: {
-  register: UseFormRegister<FieldValues>
-  handleSubmit: UseFormHandleSubmit<FieldValues>
-  contentType: string
-  uploading: boolean
-  isSubmitting: boolean
-  editing: Lesson | null
-  universities: { id: string; name: string }[]
-  stages: { id: string; name: string }[]
-  onUniChange: (id: string) => void
-  onFileUpload: (file: File) => void
-  onSubmit: (d: unknown) => void
-  isPending: boolean
-}) {
-  const inputCls = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors bg-white'
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Input label="Название *" {...register('title', { required: true })} />
-
-      <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">Университет</label>
-        <select onChange={e => onUniChange(e.target.value)} className={inputCls}>
-          <option value="">— выбрать —</option>
-          {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">Этап</label>
-        <select {...register('stage_id')} className={inputCls} disabled={stages.length === 0}>
-          <option value="">— выбрать —</option>
-          {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">Тип контента</label>
-        <select {...register('content_type')} className={inputCls}>
-          <option value="text">Текст</option>
-          <option value="video">Видео</option>
-          <option value="document">Документ (PDF)</option>
-        </select>
-      </div>
-
-      {contentType === 'text' && (
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1">Содержимое</label>
-          <textarea rows={6} {...register('content')} className={inputCls} placeholder="HTML или текст урока..." />
-        </div>
-      )}
-
-      {(contentType === 'video' || contentType === 'document') && (
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            {contentType === 'video' ? 'Видео файл' : 'PDF документ'}
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer border border-dashed border-slate-300 rounded-lg px-4 py-3 hover:border-primary/50 hover:bg-primary/5 transition-colors">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-4 h-4 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">
-                {uploading ? 'Загрузка...' : 'Нажмите для загрузки файла'}
-              </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                {contentType === 'video' ? 'MP4, WebM' : 'PDF'}
-              </p>
-            </div>
-            <input
-              type="file"
-              className="hidden"
-              accept={contentType === 'video' ? 'video/*' : '.pdf'}
-              onChange={e => { const f = e.target.files?.[0]; if (f) onFileUpload(f) }}
-            />
-          </label>
-          {uploading && (
-            <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
-            </div>
-          )}
-        </div>
-      )}
-
-      <Input label="Порядок" type="number" {...register('order')} />
-
-      <Button type="submit" className="w-full" loading={isSubmitting || isPending || uploading}>
-        {editing ? 'Сохранить' : 'Создать урок'}
-      </Button>
-    </form>
   )
 }

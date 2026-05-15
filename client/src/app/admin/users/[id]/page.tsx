@@ -114,17 +114,24 @@ function ProgressSection({ userId }: { userId: string }) {
                 {/* Индивидуальный дедлайн */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <CalendarDays className="h-4 w-4 text-text-muted" />
-                  <input
-                    type="date"
-                    defaultValue={savedDeadline}
-                    key={savedDeadline}
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        setDeadline.mutate({ stageId: stage.id, deadline: e.target.value })
-                      }
-                    }}
-                  />
+                  <div className="flex flex-col items-end gap-0.5">
+                    <input
+                      type="date"
+                      defaultValue={savedDeadline}
+                      key={savedDeadline}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setDeadline.mutate({ stageId: stage.id, deadline: e.target.value })
+                        }
+                      }}
+                    />
+                    {!savedDeadline && stage.deadline_days && (
+                      <span className="text-[10px] text-text-muted">
+                        рек. +{stage.deadline_days} дн.
+                      </span>
+                    )}
+                  </div>
                   {savedDeadline && (
                     <button
                       onClick={() => removeDeadline.mutate(stage.id)}

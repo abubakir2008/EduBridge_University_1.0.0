@@ -10,6 +10,7 @@ class ContentType(str, enum.Enum):
     text = "text"
     video = "video"
     document = "document"
+    image = "image"
 
 
 class Lesson(Base):
@@ -18,7 +19,7 @@ class Lesson(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     content_type = Column(Enum(ContentType), nullable=False, default=ContentType.text)
-    body = Column(Text, nullable=True)
+    content = Column(Text, nullable=True)
     file_id = Column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
     stage_id = Column(UUID(as_uuid=True), ForeignKey("stages.id", ondelete="SET NULL"), nullable=True)
     order = Column(Integer, nullable=False, default=1)
