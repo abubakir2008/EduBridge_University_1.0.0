@@ -100,7 +100,7 @@ export interface StudentProgress {
   user_id: string
   university_id: string
   status: ProgressStatus
-  current_stage_id?: string
+  current_stage_id?: string | null
   university: University
   current_stage?: Stage & {
     deadline_status?: DeadlineStatus

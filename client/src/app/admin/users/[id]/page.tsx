@@ -1,23 +1,154 @@
 'use client'
 import { use, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw, CalendarDays, X, GraduationCap } from 'lucide-react'
 import Link from 'next/link'
-import { apiGetUser, apiUpdateUser, apiUpdateUserStatus } from '@/lib/api/users'
+import {
+  apiGetUser, apiUpdateUser, apiUpdateUserStatus,
+  apiGetStageDeadlines, apiSetStageDeadline, apiDeleteStageDeadline,
+} from '@/lib/api/users'
+import { apiGetUniversity } from '@/lib/api/universities'
 import { apiResetPassword } from '@/lib/api/auth'
-import { apiGetNotifications } from '@/lib/api/notifications'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
+import type { StudentProgress, Stage } from '@/types'
+import client from '@/lib/api/client'
 
 const statuses = ['active', 'archived', 'enrolled']
 
+// ─── Блок прогресса с индивидуальными дедлайнами ─────────────────────────────
+function ProgressSection({ userId }: { userId: string }) {
+  const qc = useQueryClient()
+
+  const { data: progress, isLoading } = useQuery<StudentProgress>({
+    queryKey: ['progress', userId],
+    queryFn: () => client.get<StudentProgress>(`/training/${userId}`).then(r => r.data),
+    retry: false,
+  })
+
+  const { data: deadlines } = useQuery<Record<string, string>>({
+    queryKey: ['stage-deadlines', userId],
+    queryFn: () => apiGetStageDeadlines(userId),
+    enabled: !!progress,
+  })
+
+  const { data: allStages } = useQuery<Stage[]>({
+    queryKey: ['stages', progress?.university_id],
+    queryFn: () => client.get<Stage[]>(`/universities/${progress!.university_id}/stages`).then(r => r.data),
+    enabled: !!progress?.university_id,
+  })
+
+  const { data: university } = useQuery({
+    queryKey: ['uni', progress?.university_id],
+    queryFn: () => apiGetUniversity(progress!.university_id),
+    enabled: !!progress?.university_id,
+  })
+
+  const setDeadline = useMutation({
+    mutationFn: ({ stageId, deadline }: { stageId: string; deadline: string }) =>
+      apiSetStageDeadline(userId, stageId, deadline),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['stage-deadlines', userId] }); toast.success('Дедлайн установлен') },
+    onError: () => toast.error('Ошибка'),
+  })
+
+  const removeDeadline = useMutation({
+    mutationFn: (stageId: string) => apiDeleteStageDeadline(userId, stageId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['stage-deadlines', userId] }); toast.success('Дедлайн удалён') },
+  })
+
+  if (isLoading) return <Skeleton className="h-40 rounded-2xl" />
+  if (!progress) return (
+    <Card>
+      <div className="flex items-center gap-3 text-text-muted py-4">
+        <GraduationCap className="h-5 w-5" />
+        <span className="text-sm">Студент ещё не зачислен в университет</span>
+      </div>
+    </Card>
+  )
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 mb-5">
+        <GraduationCap className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold text-text-primary">Прогресс поступления</h2>
+      </div>
+
+      {university && (
+        <div className="mb-4 rounded-xl bg-primary/5 border border-primary/10 px-4 py-3">
+          <p className="text-sm font-semibold text-primary">{university.name}</p>
+          <p className="text-xs text-text-muted mt-0.5">{university.city}, {university.country}</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {(allStages ?? []).map((stage) => {
+          const isCurrent = progress.current_stage_id === stage.id
+          const savedDeadline = deadlines?.[stage.id] ?? ''
+
+          return (
+            <div
+              key={stage.id}
+              className={`rounded-xl border px-4 py-3 ${isCurrent ? 'border-primary/30 bg-primary/3' : 'border-slate-200'}`}
+            >
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${isCurrent ? 'bg-primary text-white' : 'bg-slate-100 text-text-muted'}`}>
+                    {stage.order}
+                  </span>
+                  <span className={`text-sm font-medium truncate ${isCurrent ? 'text-primary' : 'text-text-primary'}`}>
+                    {stage.name}
+                  </span>
+                  {isCurrent && (
+                    <span className="text-[10px] font-bold bg-primary text-white rounded-full px-2 py-0.5 flex-shrink-0">
+                      ТЕКУЩИЙ
+                    </span>
+                  )}
+                </div>
+
+                {/* Индивидуальный дедлайн */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <CalendarDays className="h-4 w-4 text-text-muted" />
+                  <input
+                    type="date"
+                    defaultValue={savedDeadline}
+                    key={savedDeadline}
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setDeadline.mutate({ stageId: stage.id, deadline: e.target.value })
+                      }
+                    }}
+                  />
+                  {savedDeadline && (
+                    <button
+                      onClick={() => removeDeadline.mutate(stage.id)}
+                      className="text-text-muted hover:text-error transition-colors"
+                      title="Удалить дедлайн"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {(allStages ?? []).length === 0 && (
+          <p className="text-sm text-text-muted text-center py-4">Этапов нет</p>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ─── Главная страница студента ────────────────────────────────────────────────
 export default function AdminUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const qc = useQueryClient()
@@ -73,6 +204,7 @@ export default function AdminUserPage({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
+      {/* Данные студента */}
       <Card>
         <form onSubmit={handleSubmit((d) => updateMutation.mutate(d as unknown as Record<string, unknown>))} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -82,11 +214,13 @@ export default function AdminUserPage({ params }: { params: Promise<{ id: string
             <Input label="Гражданство" disabled={!editing} {...register('citizenship')} />
             <Input label="GPA" type="number" step="0.01" disabled={!editing} {...register('gpa')} />
             <Input label="IELTS" type="number" step="0.5" disabled={!editing} {...register('ielts_score')} />
+            <Input label="SAT" type="number" disabled={!editing} {...register('sat_score')} />
+            <Input label="Желаемая специальность" disabled={!editing} {...register('desired_specialty')} />
           </div>
 
           <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm text-text-muted">Статус аккаунта:</span>
+              <span className="text-sm text-text-muted">Статус:</span>
               <Badge variant={user.account_status === 'active' ? 'success' : user.account_status === 'enrolled' ? 'default' : 'muted'}>
                 {user.account_status}
               </Badge>
@@ -108,6 +242,9 @@ export default function AdminUserPage({ params }: { params: Promise<{ id: string
           )}
         </form>
       </Card>
+
+      {/* Прогресс с индивидуальными дедлайнами */}
+      <ProgressSection userId={id} />
 
       {/* Reset password modal */}
       <Modal open={!!resetCreds} onClose={() => setResetCreds(null)} title="Новый пароль">

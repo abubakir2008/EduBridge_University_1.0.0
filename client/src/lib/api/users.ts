@@ -60,3 +60,13 @@ export const apiCreateNote = (userId: string, text: string) =>
 
 export const apiDeleteNote = (userId: string, noteId: string) =>
   client.delete(`/users/${userId}/notes/${noteId}`)
+
+// Индивидуальные дедлайны студента по этапам
+export const apiGetStageDeadlines = (userId: string) =>
+  client.get<Record<string, string>>(`/training/${userId}/stage-deadlines`).then((r) => r.data)
+
+export const apiSetStageDeadline = (userId: string, stageId: string, deadline: string) =>
+  client.put(`/training/${userId}/stage-deadlines/${stageId}`, { deadline }).then((r) => r.data)
+
+export const apiDeleteStageDeadline = (userId: string, stageId: string) =>
+  client.delete(`/training/${userId}/stage-deadlines/${stageId}`)

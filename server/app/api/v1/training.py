@@ -1,9 +1,12 @@
 import uuid
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_admin
 from app.models.user import User, UserRole
+from app.models.student_stage_deadline import StudentStageDeadline
 from app.schemas.training import (
     StartTrainingRequest, StudentProgressResponse, CompleteRequirementRequest,
     NoteCreate, NoteUpdate, NoteResponse, DeadlineStatus,
@@ -128,3 +131,63 @@ def delete_note(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступ запрещён")
     progress = training_service.get_progress_or_404(db, user_id)
     training_service.delete_note(db, progress, note_id)
+
+
+# ── Индивидуальные дедлайны студента по этапам ───────────────────────────────
+
+class DeadlineSet(BaseModel):
+    deadline: date
+
+
+@router.get("/{user_id}/stage-deadlines")
+def get_stage_deadlines(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    progress = training_service.get_progress_or_404(db, user_id)
+    rows = db.query(StudentStageDeadline).filter(
+        StudentStageDeadline.student_progress_id == progress.id
+    ).all()
+    return {str(r.stage_id): str(r.deadline) for r in rows}
+
+
+@router.put("/{user_id}/stage-deadlines/{stage_id}", status_code=200)
+def set_stage_deadline(
+    user_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    body: DeadlineSet,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    progress = training_service.get_progress_or_404(db, user_id)
+    row = db.query(StudentStageDeadline).filter(
+        StudentStageDeadline.student_progress_id == progress.id,
+        StudentStageDeadline.stage_id == stage_id,
+    ).first()
+    if row:
+        row.deadline = body.deadline
+    else:
+        row = StudentStageDeadline(
+            student_progress_id=progress.id,
+            stage_id=stage_id,
+            deadline=body.deadline,
+        )
+        db.add(row)
+    db.commit()
+    return {"stage_id": str(stage_id), "deadline": str(body.deadline)}
+
+
+@router.delete("/{user_id}/stage-deadlines/{stage_id}", status_code=204)
+def delete_stage_deadline(
+    user_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    progress = training_service.get_progress_or_404(db, user_id)
+    db.query(StudentStageDeadline).filter(
+        StudentStageDeadline.student_progress_id == progress.id,
+        StudentStageDeadline.stage_id == stage_id,
+    ).delete()
+    db.commit()
