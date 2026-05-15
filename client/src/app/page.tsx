@@ -161,7 +161,7 @@ const countries = [
 
 const leadSchema = z.object({
   full_name: z.string().min(2, "Введите имя"),
-  phone: z.string().min(7, "Введите телефон"),
+  phone: z.string().regex(/^\+996\d{9}$/, "Введите номер в формате +996XXXXXXXXX"),
   email: z.string().email("Неверный email").optional().or(z.literal("")),
   country_interest: z.string().optional(),
   comment: z.string().optional(),
@@ -949,7 +949,7 @@ export default function LandingPage() {
                       <Input
                         label="Телефон *"
                         type="tel"
-                        placeholder="+7 999 123 45 67"
+                        placeholder="+996700123456"
                         error={errors.phone?.message}
                         {...register("phone")}
                       />

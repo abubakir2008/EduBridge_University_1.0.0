@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.university import University
@@ -10,7 +11,7 @@ from app.schemas.stage import StageCreate, StageUpdate
 
 def get_university_or_404(db: Session, university_id: uuid.UUID) -> University:
     uni = db.get(University, university_id)
-    if not uni:
+    if not uni or uni.deleted_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Университет не найден")
     return uni
 
@@ -21,7 +22,7 @@ def list_universities(
     specialty: str | None = None,
     max_cost: int | None = None,
 ) -> list[University]:
-    q = db.query(University)
+    q = db.query(University).filter(University.deleted_at.is_(None))
     if country:
         q = q.filter(University.country.ilike(f"%{country}%"))
     if max_cost:
@@ -46,7 +47,7 @@ def update_university(db: Session, uni: University, data: UniversityUpdate) -> U
 
 
 def delete_university(db: Session, uni: University) -> None:
-    db.delete(uni)
+    uni.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 

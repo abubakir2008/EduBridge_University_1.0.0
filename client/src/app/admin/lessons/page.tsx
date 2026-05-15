@@ -45,10 +45,11 @@ export default function AdminLessonsPage() {
   const [uploadedFileName, setUploadedFileName] = useState('')
   const [formUniId, setFormUniId] = useState('')
 
-  const { data: lessons = [], isLoading: lessonsLoading } = useQuery({
+  const { data: lessonsPage, isLoading: lessonsLoading } = useQuery({
     queryKey: ['lessons'],
-    queryFn: () => apiGetLessons(),
+    queryFn: () => apiGetLessons({ per_page: 500 }),
   })
+  const lessons = lessonsPage?.items ?? []
   const { data: universities = [] } = useQuery({
     queryKey: ['universities-list'],
     queryFn: () => apiGetUniversities(),

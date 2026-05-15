@@ -43,7 +43,8 @@ export default function AdminNotificationsPage() {
     queryKey: ['admin-notifications'],
     queryFn: apiGetAllNotifications,
   })
-  const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => apiGetUsers() })
+  const { data: usersPage } = useQuery({ queryKey: ['users', '', '', 1], queryFn: () => apiGetUsers({ per_page: 200 }) })
+  const users = usersPage?.items
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),

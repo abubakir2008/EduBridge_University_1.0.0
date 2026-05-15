@@ -329,6 +329,7 @@ export default function UsersPage() {
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [detailUser, setDetailUser] = useState<User | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -342,24 +343,22 @@ export default function UsersPage() {
   const [bulkMessage, setBulkMessage] = useState('')
   const [sendingBulk, setSendingBulk] = useState(false)
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users', statusFilter],
-    queryFn: () => apiGetUsers(statusFilter ? { account_status: statusFilter } : undefined),
+  const { data: usersPage, isLoading } = useQuery({
+    queryKey: ['users', statusFilter, search, page],
+    queryFn: () => apiGetUsers({
+      page,
+      per_page: 50,
+      ...(statusFilter ? { account_status: statusFilter } : {}),
+      ...(search.trim() ? { search: search.trim() } : {}),
+    }),
+    placeholderData: (prev) => prev,
   })
 
-  const students = useMemo(() => {
-    let list = users.filter((u) => u.role === 'student')
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      list = list.filter((u) =>
-        u.full_name.toLowerCase().includes(q) ||
-        (u.phone ?? '').toLowerCase().includes(q) ||
-        (u.login ?? '').toLowerCase().includes(q) ||
-        (u.email ?? '').toLowerCase().includes(q)
-      )
-    }
-    return list
-  }, [users, search])
+  const students = useMemo(
+    () => (usersPage?.items ?? []).filter((u) => u.role === 'student'),
+    [usersPage],
+  )
+  const totalPages = usersPage?.pages ?? 1
 
   const allSelected = students.length > 0 && students.every((u) => selected.has(u.id))
 
@@ -515,7 +514,7 @@ export default function UsersPage() {
       {/* Filters + search */}
       <div className="flex gap-2 flex-wrap items-center">
         {filterOptions.map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)}
+          <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
             className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${statusFilter === s ? 'bg-primary text-white' : 'bg-white border border-slate-200 text-text-secondary hover:bg-surface'}`}>
             {filterLabels[s]}
           </button>
@@ -524,7 +523,7 @@ export default function UsersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Поиск по имени, телефону..."
             className="w-full rounded-input border border-slate-200 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
@@ -620,6 +619,29 @@ export default function UsersPage() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-secondary disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
+            ← Назад
+          </button>
+          <span className="text-sm text-text-muted">
+            Стр. {page} из {totalPages} · всего {usersPage?.total ?? 0}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-secondary disabled:opacity-40 hover:bg-slate-50 transition-colors"
+          >
+            Вперёд →
+          </button>
+        </div>
       )}
 
       {detailUser && (

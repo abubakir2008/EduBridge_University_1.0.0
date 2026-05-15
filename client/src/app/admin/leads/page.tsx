@@ -167,13 +167,19 @@ export default function LeadsPage() {
   const [createdCreds, setCreatedCreds] = useState<{ login: string; password: string } | null>(null)
   const [historyLead, setHistoryLead] = useState<Lead | null>(null)
 
-  const { data: allLeads = [], isLoading, refetch } = useQuery({
-    queryKey: ['leads'],
-    queryFn: () => apiGetLeads(),
+  const { data: newLeadsPage, isLoading: loadingNew, refetch: refetchNew } = useQuery({
+    queryKey: ['leads', 'new'],
+    queryFn: () => apiGetLeads({ status: 'new', per_page: 100 }),
+  })
+  const { data: historyPage, isLoading: loadingHistory, refetch: refetchHistory } = useQuery({
+    queryKey: ['leads', 'history'],
+    queryFn: () => apiGetLeads({ per_page: 100 }),
   })
 
-  const newLeads = allLeads.filter((l) => l.status === 'new')
-  const historyLeads = allLeads.filter((l) => l.status !== 'new')
+  const isLoading = loadingNew || loadingHistory
+  const newLeads = newLeadsPage?.items ?? []
+  const historyLeads = (historyPage?.items ?? []).filter((l) => l.status !== 'new')
+  const refetch = () => { refetchNew(); refetchHistory() }
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Lead['status'] }) => apiUpdateLead(id, { status }),

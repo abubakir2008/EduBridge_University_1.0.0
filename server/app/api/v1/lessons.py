@@ -1,5 +1,7 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
@@ -9,9 +11,27 @@ from app.schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
 
-@router.get("", response_model=list[LessonResponse])
-def list_lessons(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(Lesson).order_by(Lesson.order).all()
+class PaginatedLessons(BaseModel):
+    items: list[LessonResponse]
+    total: int
+    page: int
+    pages: int
+
+
+@router.get("", response_model=PaginatedLessons)
+def list_lessons(
+    stage_id: Optional[uuid.UUID] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    q = db.query(Lesson)
+    if stage_id:
+        q = q.filter(Lesson.stage_id == stage_id)
+    total = q.count()
+    items = q.order_by(Lesson.order).offset((page - 1) * per_page).limit(per_page).all()
+    return PaginatedLessons(items=items, total=total, page=page, pages=max(1, -(-total // per_page)))
 
 
 @router.get("/{lesson_id}", response_model=LessonResponse)

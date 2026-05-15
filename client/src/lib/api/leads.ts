@@ -14,8 +14,15 @@ export const apiCreateLead = (body: {
   comment: body.comment,
 }).then((r) => r.data)
 
-export const apiGetLeads = (params?: { status?: LeadStatus }) =>
-  client.get<Lead[]>('/leads', { params }).then((r) => r.data)
+export interface PaginatedLeads {
+  items: Lead[]
+  total: number
+  page: number
+  pages: number
+}
+
+export const apiGetLeads = (params?: { status?: LeadStatus; page?: number; per_page?: number }) =>
+  client.get<PaginatedLeads>('/leads', { params }).then((r) => r.data)
 
 export const apiUpdateLead = (id: string, body: { status: LeadStatus }) =>
   client.patch<Lead>(`/leads/${id}`, body).then((r) => r.data)

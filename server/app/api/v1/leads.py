@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import require_admin
@@ -23,16 +24,27 @@ def create_lead(request: Request, body: LeadCreate, db: Session = Depends(get_db
     return lead
 
 
-@router.get("", response_model=list[LeadResponse])
+class PaginatedLeads(BaseModel):
+    items: list[LeadResponse]
+    total: int
+    page: int
+    pages: int
+
+
+@router.get("", response_model=PaginatedLeads)
 def list_leads(
     status: Optional[LeadStatus] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     _=Depends(require_admin),
 ):
     q = db.query(Lead)
     if status is not None:
         q = q.filter(Lead.status == status)
-    return q.order_by(Lead.created_at.desc()).all()
+    total = q.count()
+    items = q.order_by(Lead.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return PaginatedLeads(items=items, total=total, page=page, pages=max(1, -(-total // per_page)))
 
 
 @router.patch("/{lead_id}", response_model=LeadResponse)

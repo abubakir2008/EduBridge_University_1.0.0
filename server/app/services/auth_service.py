@@ -30,13 +30,31 @@ def create_tokens(db: Session, user: User) -> dict:
     return {"access_token": access_token, "refresh_token": raw_refresh}
 
 
+def _revoke_all_user_tokens(db: Session, user_id: uuid.UUID) -> None:
+    """Revoke every active refresh token for a user (used when a reuse attack is detected)."""
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked == False,  # noqa: E712
+    ).update({"revoked": True})
+    db.commit()
+
+
 def refresh_tokens(db: Session, raw_refresh: str) -> dict:
     rt = db.query(RefreshToken).filter(
         RefreshToken.token == raw_refresh,
-        RefreshToken.revoked == False,  # noqa: E712
     ).first()
+
     if not rt:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token недействителен")
+
+    # Reuse attack: token exists but already revoked → revoke ALL tokens for this user
+    if rt.revoked:
+        _revoke_all_user_tokens(db, rt.user_id)
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Обнаружено повторное использование токена. Все сессии завершены.",
+        )
+
     if rt.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token истёк")
 
@@ -60,5 +78,7 @@ def logout(db: Session, raw_refresh: str) -> None:
 def reset_password(db: Session, user: User) -> str:
     new_password = generate_password()
     user.password_hash = hash_password(new_password)
+    # Invalidate all existing sessions after password reset
+    _revoke_all_user_tokens(db, user.id)
     db.commit()
     return new_password

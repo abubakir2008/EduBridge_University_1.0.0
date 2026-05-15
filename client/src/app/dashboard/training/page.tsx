@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement } from '@/lib/api/training'
 import { apiUploadFile } from '@/lib/api/files'
@@ -13,6 +13,67 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
+
+type StageReq = { is_done: boolean; requirement: { is_required: boolean } }
+type MinStage = { id: string; name: string; deadline_status?: string; requirements?: StageReq[] }
+type MinProgress = { current_stage_id?: string | null; status?: string; current_stage?: MinStage | null }
+
+function StatusTracker({ progress, allStages }: { progress: MinProgress; allStages: { id: string; name: string }[] }) {
+  const currentIdx = allStages.findIndex((s) => s.id === (progress.current_stage_id ?? ''))
+  const doneCount = Math.max(0, currentIdx)
+  const total = allStages.length
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
+  const stage = progress.current_stage
+  const pendingRequired = stage?.requirements?.filter((r) => !r.is_done && r.requirement.is_required).length ?? 0
+
+  let label: string
+  let sublabel: string
+  let colorClass: string
+  let Icon: typeof ListChecks
+
+  if (progress.status === 'completed') {
+    label = 'Поступление завершено!'
+    sublabel = 'Все этапы успешно пройдены'
+    colorClass = 'border-success/40 bg-emerald-50 text-emerald-700'
+    Icon = Trophy
+  } else if (stage?.deadline_status === 'overdue') {
+    label = stage?.name ?? 'Текущий этап'
+    sublabel = 'Срок выполнения истёк — требуется срочное действие'
+    colorClass = 'border-error/40 bg-red-50 text-error'
+    Icon = AlertTriangle
+  } else if (pendingRequired > 0) {
+    label = stage?.name ?? 'Текущий этап'
+    sublabel = `Ожидаем ${pendingRequired} обязательных ${pendingRequired === 1 ? 'требования' : 'требований'}`
+    colorClass = 'border-warning/40 bg-amber-50 text-amber-700'
+    Icon = ListChecks
+  } else {
+    label = stage?.name ?? 'Текущий этап'
+    sublabel = 'Все требования выполнены — завершите этап'
+    colorClass = 'border-primary/30 bg-primary/5 text-primary'
+    Icon = CheckCircle2
+  }
+
+  return (
+    <div className={`flex items-center justify-between gap-4 rounded-xl border px-5 py-4 ${colorClass}`}>
+      <div className="flex items-center gap-3 min-w-0">
+        <Icon className="h-5 w-5 shrink-0" />
+        <div className="min-w-0">
+          <p className="font-semibold text-sm leading-tight truncate">{label}</p>
+          <p className="text-xs mt-0.5 opacity-75 leading-tight">{sublabel}</p>
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-xs opacity-60 mb-1">Прогресс</p>
+        <div className="flex items-center gap-2">
+          <div className="w-24 h-1.5 rounded-full bg-current/20 overflow-hidden">
+            <div className="h-full rounded-full bg-current transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-xs font-semibold">{doneCount}/{total}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function TrainingPage() {
   const { user } = useAuthStore()
@@ -95,6 +156,9 @@ export default function TrainingPage() {
         <h1 className="text-2xl font-bold text-text-primary">{progress.university?.name}</h1>
         <p className="text-text-secondary mt-1">Мой путь поступления</p>
       </div>
+
+      {/* Status tracker */}
+      <StatusTracker progress={progress} allStages={allStages} />
 
       {/* Stepper */}
       <Card padding="sm">

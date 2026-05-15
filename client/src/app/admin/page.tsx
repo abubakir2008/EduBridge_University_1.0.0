@@ -40,8 +40,8 @@ export default function AdminDashboardPage() {
   const { data: students } = useQuery({ queryKey: ['admin-students'], queryFn: apiGetStudentRows })
   const { data: monthly } = useQuery({ queryKey: ['admin-monthly'], queryFn: apiGetMonthlyStats })
   const { data: reminders = [] } = useQuery({ queryKey: ['reminders'], queryFn: apiGetReminders })
-  const { data: allUsers = [] } = useQuery({ queryKey: ['users'], queryFn: () => apiGetUsers() })
-  const studentUsers = allUsers.filter((u) => u.role === 'student')
+  const { data: usersPage } = useQuery({ queryKey: ['users', '', '', 1], queryFn: () => apiGetUsers({ per_page: 200 }) })
+  const studentUsers = (usersPage?.items ?? []).filter((u) => u.role === 'student')
 
   const addReminderMutation = useMutation({
     mutationFn: () => apiCreateReminder({

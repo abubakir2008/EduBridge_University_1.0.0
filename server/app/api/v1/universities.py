@@ -10,7 +10,7 @@ from app.schemas.university import UniversityCreate, UniversityUpdate, Universit
 from app.schemas.stage import StageCreate, StageResponse
 from app.services import university_service
 from app.services import matching_service
-from app.services.file_service import upload_file, get_minio
+from app.services.file_service import upload_file, get_presigned_url, get_minio
 
 router = APIRouter(prefix="/universities", tags=["universities"])
 
@@ -83,9 +83,6 @@ def upload_photo(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    allowed = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-    if file.content_type not in allowed:
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Разрешены: JPG, PNG, WEBP, GIF")
     uni = university_service.get_university_or_404(db, university_id)
     record = upload_file(db, file, "universities", current_user.id)
     ids = list(uni.photo_file_ids or [])
@@ -145,11 +142,7 @@ def upload_video(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    allowed = {"video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-msvideo"}
-    if file.content_type not in allowed:
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Разрешены: MP4, WebM, OGG, MOV, AVI")
-
-    # Проверяем размер файла (макс 500 МБ)
+    # Size check before reading into memory
     file.file.seek(0, 2)
     size = file.file.tell()
     file.file.seek(0)
@@ -158,7 +151,7 @@ def upload_video(
 
     uni = university_service.get_university_or_404(db, university_id)
 
-    # Удаляем старое видео-файл если есть
+    # Remove old video file if present
     if uni.video_file_id:
         old = db.get(File, uni.video_file_id)
         if old:
@@ -168,32 +161,37 @@ def upload_video(
                 pass
             db.delete(old)
 
-    from io import BytesIO
-    object_key = f"{uuid.uuid4()}/{file.filename}"
-    minio = get_minio()
-    data = file.file.read()
-    minio.put_object("universities", object_key, BytesIO(data), len(data), content_type=file.content_type or "video/mp4")
-
-    record = File(
-        bucket="universities",
-        object_key=object_key,
-        original_name=file.filename or "video",
-        mime_type=file.content_type,
-        uploaded_by=current_user.id,
-    )
-    db.add(record)
-    db.flush()
-
+    # upload_file validates magic bytes + stores in MinIO
+    record = upload_file(db, file, "universities", current_user.id)
     uni.video_file_id = record.id
     db.commit()
     return {"file_id": str(record.id)}
+
+
+@router.get("/{university_id}/video/url")
+def get_video_url(
+    university_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """Returns a time-limited presigned URL for the university video. Requires authentication."""
+    uni = university_service.get_university_or_404(db, university_id)
+    if not uni.video_file_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Видео не загружено")
+    record = db.get(File, uni.video_file_id)
+    if not record:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
+    url = get_presigned_url(record, expires_seconds=3600)
+    return {"url": url, "expires_in_seconds": 3600}
 
 
 @router.get("/{university_id}/video")
 def stream_video(
     university_id: uuid.UUID,
     db: Session = Depends(get_db),
+    _=Depends(get_current_user),
 ):
+    """Stream video (requires auth). Use /video/url for presigned URL approach."""
     uni = university_service.get_university_or_404(db, university_id)
     if not uni.video_file_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Видео не загружено")
@@ -205,7 +203,7 @@ def stream_video(
     return StreamingResponse(
         response,
         media_type=record.mime_type or "video/mp4",
-        headers={"Cache-Control": "public, max-age=86400", "Accept-Ranges": "bytes"},
+        headers={"Cache-Control": "private, max-age=3600", "Accept-Ranges": "bytes"},
     )
 
 

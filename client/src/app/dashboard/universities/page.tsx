@@ -73,9 +73,15 @@ export default function UniversitiesPage() {
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text-primary">Университеты</h1>
-        <Button variant={showMatched ? 'primary' : 'outline'} size="sm" onClick={() => setShowMatched(!showMatched)}>
-          {showMatched ? 'Все университеты' : 'Подобрать по моим данным'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <a href="/dashboard/compare"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-slate-50 transition-colors">
+            Сравнить
+          </a>
+          <Button variant={showMatched ? 'primary' : 'outline'} size="sm" onClick={() => setShowMatched(!showMatched)}>
+            {showMatched ? 'Все университеты' : 'Подобрать по моим данным'}
+          </Button>
+        </div>
       </div>
 
       {user && !user.gpa && (

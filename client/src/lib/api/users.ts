@@ -6,8 +6,15 @@ export const apiGetMe = () => client.get<User>('/users/me').then((r) => r.data)
 export const apiGetUser = (id: string) =>
   client.get<User>(`/users/${id}`).then((r) => r.data)
 
-export const apiGetUsers = (params?: Record<string, string>) =>
-  client.get<User[]>('/users', { params }).then((r) => r.data)
+export interface PaginatedUsers {
+  items: User[]
+  total: number
+  page: number
+  pages: number
+}
+
+export const apiGetUsers = (params?: { page?: number; per_page?: number; search?: string }) =>
+  client.get<PaginatedUsers>('/users', { params }).then((r) => r.data)
 
 export const apiCreateUser = (body: {
   full_name: string

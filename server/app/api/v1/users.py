@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -19,9 +19,30 @@ from app.services.file_service import upload_file, get_minio
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("", response_model=list[UserResponse])
-def list_users(db: Session = Depends(get_db), _=Depends(require_admin)):
-    return db.query(User).all()
+class PaginatedUsers(BaseModel):
+    items: list[UserResponse]
+    total: int
+    page: int
+    pages: int
+
+
+@router.get("", response_model=PaginatedUsers)
+def list_users(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    q = db.query(User).filter(User.deleted_at.is_(None))
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            User.full_name.ilike(term) | User.login.ilike(term) | User.email.ilike(term)
+        )
+    total = q.count()
+    items = q.order_by(User.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    return PaginatedUsers(items=items, total=total, page=page, pages=max(1, -(-total // per_page)))
 
 
 @router.post("", response_model=CredentialsResponse, status_code=201)

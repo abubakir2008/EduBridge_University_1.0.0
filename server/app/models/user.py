@@ -47,6 +47,7 @@ class User(Base):
     language_skills = Column(JSON, nullable=True, default=list)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     favourites = relationship("Favourite", back_populates="user", cascade="all, delete-orphan")

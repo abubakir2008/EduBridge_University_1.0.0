@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = auth_service.authenticate(db, body.login, body.password)
     tokens = auth_service.create_tokens(db, user)
@@ -35,7 +35,9 @@ def logout(body: RefreshRequest, db: Session = Depends(get_db), _: User = Depend
 
 
 @router.post("/reset-password/{user_id}", response_model=CredentialsResponse)
+@limiter.limit("3/minute")
 def reset_password(
+    request: Request,
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),

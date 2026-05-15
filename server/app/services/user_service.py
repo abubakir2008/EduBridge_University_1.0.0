@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.core.security import hash_password
@@ -9,7 +10,7 @@ from app.schemas.user import UserCreate, UserUpdate
 
 def get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
     user = db.get(User, user_id)
-    if not user:
+    if not user or user.deleted_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Пользователь не найден")
     return user
 
@@ -59,7 +60,7 @@ def change_status(db: Session, user: User, new_status: AccountStatus) -> User:
 
 
 def delete_user(db: Session, user: User) -> None:
-    db.delete(user)
+    user.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
 
