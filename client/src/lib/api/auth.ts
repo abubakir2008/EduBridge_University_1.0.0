@@ -1,14 +1,15 @@
 import client from './client'
-import type { TokenResponse, Credentials } from '@/types'
+import type { LoginResponse, Credentials } from '@/types'
 
+// Tokens are returned as httpOnly cookies; the body only carries the role.
 export const apiLogin = (login: string, password: string) =>
-  client.post<TokenResponse>('/auth/login', { login, password }).then((r) => r.data)
+  client.post<LoginResponse>('/auth/login', { login, password }).then((r) => r.data)
 
-export const apiRefresh = (refresh_token: string) =>
-  client.post<TokenResponse>('/auth/refresh', { refresh_token }).then((r) => r.data)
+export const apiRefresh = () =>
+  client.post<LoginResponse>('/auth/refresh').then((r) => r.data)
 
-export const apiLogout = (refresh_token: string) =>
-  client.post('/auth/logout', { refresh_token }, { validateStatus: () => true })
+export const apiLogout = () =>
+  client.post('/auth/logout', undefined, { validateStatus: () => true })
 
 export const apiResetPassword = (userId: string) =>
   client.post<Credentials>(`/auth/reset-password/${userId}`).then((r) => r.data)

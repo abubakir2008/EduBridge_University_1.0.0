@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Building2, BookOpen, FileText,
-  Bell, LogOut, GraduationCap, ClipboardList, Activity,
+  Bell, LogOut, GraduationCap, ClipboardList, Activity, Bot,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -18,6 +18,7 @@ const links = [
   { href: '/admin/lessons', label: 'Уроки', icon: BookOpen },
   { href: '/admin/notifications', label: 'Уведомления', icon: Bell },
   { href: '/admin/activity', label: 'Журнал действий', icon: Activity },
+  { href: '/admin/ai', label: 'AI-Аналитика', icon: Bot },
 ]
 
 export function AdminSidebar() {
@@ -31,7 +32,7 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen sticky top-0 border-r border-slate-100 bg-white px-3 py-5">
+    <aside className="fixed left-0 top-0 flex flex-col w-64 h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5 z-40">
       {/* Logo */}
       <Link href="/admin" className="flex items-center gap-2.5 mb-8 px-3">
         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">

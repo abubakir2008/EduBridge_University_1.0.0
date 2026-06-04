@@ -14,8 +14,3 @@ class FileResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class FileURLResponse(BaseModel):
-    url: str
-    expires_in_seconds: int

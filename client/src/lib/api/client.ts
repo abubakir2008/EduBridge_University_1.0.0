@@ -1,62 +1,46 @@
 import axios from 'axios'
-import Cookies from 'js-cookie'
 
+// withCredentials ensures the httpOnly auth cookies travel with every request.
 const client = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 let isRefreshing = false
-let queue: Array<(token: string) => void> = []
+let queue: Array<() => void> = []
 
-function flushQueue(token: string) {
-  queue.forEach((cb) => cb(token))
+function flushQueue() {
+  queue.forEach((cb) => cb())
   queue = []
 }
-
-client.interceptors.request.use((config) => {
-  const token = Cookies.get('access_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
 
 client.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    const status = error.response?.status
+    const url: string = original?.url || ''
+    const isAuthCall = url.includes('/auth/login') || url.includes('/auth/refresh')
+
+    if (status === 401 && original && !original._retry && !isAuthCall) {
       original._retry = true
-      const refreshToken = Cookies.get('refresh_token')
-      if (!refreshToken) {
-        Cookies.remove('access_token')
-        Cookies.remove('refresh_token')
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
 
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          queue.push((token) => {
-            original.headers.Authorization = `Bearer ${token}`
-            resolve(client(original))
-          })
+        return new Promise((resolve, reject) => {
+          queue.push(() => client(original).then(resolve).catch(reject))
         })
       }
 
       isRefreshing = true
       try {
-        const { data } = await axios.post('/api/auth/refresh', {
-          refresh_token: refreshToken,
-        })
-        Cookies.set('access_token', data.access_token, { expires: 1 })
-        Cookies.set('refresh_token', data.refresh_token, { expires: 14 })
-        flushQueue(data.access_token)
-        original.headers.Authorization = `Bearer ${data.access_token}`
+        // Refresh rotates the cookies server-side; nothing is read in JS.
+        await axios.post('/api/auth/refresh', undefined, { withCredentials: true })
+        flushQueue()
         return client(original)
-      } catch {
-        Cookies.remove('access_token')
-        Cookies.remove('refresh_token')
-        window.location.href = '/login'
+      } catch (e) {
+        queue = []
+        if (typeof window !== 'undefined') window.location.href = '/login'
         return Promise.reject(error)
       } finally {
         isRefreshing = false

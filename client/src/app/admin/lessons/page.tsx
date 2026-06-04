@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { apiGetLessons, apiCreateLesson, apiUpdateLesson, apiDeleteLesson } from '@/lib/api/lessons'
 import { apiGetUniversities, apiGetStages } from '@/lib/api/universities'
-import { apiUploadFile, apiGetFileUrl } from '@/lib/api/files'
+import { apiUploadFile } from '@/lib/api/files'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'

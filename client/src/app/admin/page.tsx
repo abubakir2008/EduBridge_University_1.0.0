@@ -13,6 +13,7 @@ import { apiGetUsers } from '@/lib/api/users'
 import { TableSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { StudentSearch } from '@/components/ui/StudentSearch'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -259,7 +260,7 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {overdue.map(s => (
-                  <tr key={s.id} onClick={() => router.push(`/admin/users`)}
+                  <tr key={s.id} onClick={() => router.push(`/admin/users/${s.id}`)}
                     className="cursor-pointer hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-text-primary">{s.full_name}</td>
                     <td className="px-4 py-3 text-text-secondary">@{s.login}</td>
@@ -286,7 +287,7 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {students.map(s => (
-                  <tr key={s.id} onClick={() => router.push(`/admin/users`)}
+                  <tr key={s.id} onClick={() => router.push(`/admin/users/${s.id}`)}
                     className="cursor-pointer hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-text-primary">{s.full_name}</td>
                     <td className="px-4 py-3 text-text-secondary">@{s.login}</td>
@@ -314,11 +315,12 @@ export default function AdminDashboardPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">Студент (необязательно)</label>
-            <select value={reminderStudent} onChange={(e) => setReminderStudent(e.target.value)}
-              className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-              <option value="">— без студента —</option>
-              {studentUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            <StudentSearch
+              value={reminderStudent}
+              onChange={setReminderStudent}
+              users={studentUsers}
+              placeholder="Без студента / поиск..."
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">Дата (необязательно)</label>

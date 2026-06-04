@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -21,13 +22,13 @@ def authenticate(db: Session, login: str, password: str) -> User:
 def create_tokens(db: Session, user: User) -> dict:
     access_token = create_access_token(str(user.id), user.role.value)
 
-    raw_refresh = str(uuid.uuid4())
+    raw_refresh = secrets.token_urlsafe(48)
     expires = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
     rt = RefreshToken(user_id=user.id, token=raw_refresh, expires_at=expires)
     db.add(rt)
     db.commit()
 
-    return {"access_token": access_token, "refresh_token": raw_refresh}
+    return {"access_token": access_token, "refresh_token": raw_refresh, "role": user.role.value}
 
 
 def _revoke_all_user_tokens(db: Session, user_id: uuid.UUID) -> None:

@@ -1,7 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File as FastAPIFile, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -14,7 +13,7 @@ from app.schemas.user import UserCreate, UserUpdate, UserResponse, UserStatusUpd
 from app.schemas.auth import CredentialsResponse
 from app.services import user_service
 from app.services import notification_service
-from app.services.file_service import upload_file, get_minio
+from app.services.file_service import upload_file, stream_file
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -195,25 +194,22 @@ def upload_contract(
 @router.get("/{user_id}/contract")
 def stream_contract(
     user_id: uuid.UUID,
+    request: Request,
     db: Session = Depends(get_db),
-    _=Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
+    # Admin sees any contract; a student may only see their own.
+    if current_user.role != UserRole.admin and current_user.id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступ запрещён")
     user = user_service.get_user_or_404(db, user_id)
     if not user.contract_file_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Контракт не загружен")
     record = db.get(File, user.contract_file_id)
     if not record:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
-
-    minio = get_minio()
-    response = minio.get_object(record.bucket, record.object_key)
-
-    filename = record.original_name.encode("utf-8").decode("latin-1", errors="replace")
-    return StreamingResponse(
-        response,
-        media_type=record.mime_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-            "Cache-Control": "no-store",
-        },
+    return stream_file(
+        record,
+        request.headers.get("range"),
+        cache_control="private, no-store",
+        inline_filename=True,
     )

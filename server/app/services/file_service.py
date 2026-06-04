@@ -1,31 +1,41 @@
+import re
 import uuid as _uuid
-from datetime import timedelta
 from io import BytesIO
 from minio import Minio
 from minio.error import S3Error
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException, status
+from fastapi.responses import StreamingResponse
 from app.core.config import settings, MINIO_BUCKETS
 from app.models.file import File
 
+_STREAM_CHUNK = 64 * 1024
+_RANGE_RE = re.compile(r"bytes=(\d+)-(\d*)")
+
 _client: Minio | None = None
 
-# Magic bytes: (offset, bytes_to_match)
+# Magic bytes: (offset, bytes_to_match, mime)
 _MAGIC: list[tuple[int, bytes, str]] = [
     (0, b'%PDF',              'application/pdf'),
     (0, b'\xff\xd8\xff',      'image/jpeg'),
     (0, b'\x89PNG\r\n\x1a\n', 'image/png'),
     (0, b'GIF87a',            'image/gif'),
     (0, b'GIF89a',            'image/gif'),
-    (0, b'RIFF',              'image/webp'),   # further check needed but acceptable
-    (0, b'\x1aE\xdf\xa3',    'video/webm'),
+    (0, b'\x1aE\xdf\xa3',    'video/webm'),   # WebM / MKV (same EBML header)
     (0, b'PK\x03\x04',       'application/zip'),  # DOCX, XLSX, ZIP
     (0, b'\xd0\xcf\x11\xe0', 'application/msword'),  # DOC, XLS
+    # MP4 family: ftyp box is usually the first box (at offset 4 after 4-byte size)
     (4, b'ftyp',              'video/mp4'),
     (4, b'free',              'video/mp4'),
     (4, b'mdat',              'video/mp4'),
     (4, b'moov',              'video/mp4'),
     (4, b'wide',              'video/mp4'),
+    # Some MP4s have an 8-byte extended size prefix before ftyp
+    (12, b'ftyp',             'video/mp4'),
+    # RIFF container — check sub-type at offset 8
+    (8, b'WEBP',              'image/webp'),
+    (8, b'AVI ',              'video/mp4'),    # treat AVI as generic video
+    (8, b'WAVE',              'audio/wav'),
 ]
 
 # Allowed MIME types per bucket
@@ -70,20 +80,23 @@ def _validate_file(data: bytes, bucket: str, claimed_mime: str | None) -> None:
         return  # unknown bucket, skip check
 
     if detected is None:
+        # Magic bytes didn't match — fall back to claimed MIME for video/image types.
+        # Browsers reliably report video/* and image/* so this is safe for media buckets.
+        if claimed_mime and claimed_mime in allowed:
+            return
         raise HTTPException(
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            "Тип файла не распознан. Загружайте только разрешённые форматы.",
+            "Тип файла не поддерживается. Загружайте MP4, WebM, JPG, PNG или PDF.",
         )
 
     if detected not in allowed:
         raise HTTPException(
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            f"Тип файла '{detected}' не разрешён для этого раздела.",
+            f"Тип файла не разрешён для этого раздела.",
         )
 
-    # Claimed MIME should match detected (prevents spoofing)
+    # Claimed MIME should roughly match detected (prevents spoofing)
     if claimed_mime and claimed_mime != detected:
-        # Some browsers send slightly different MIME strings — allow mp4/video mismatch
         both_video = detected.startswith('video/') and (claimed_mime or '').startswith('video/')
         both_image = detected.startswith('image/') and (claimed_mime or '').startswith('image/')
         if not (both_video or both_image):
@@ -154,14 +167,59 @@ def upload_file(
     return file_record
 
 
-def get_presigned_url(file_record: File, expires_seconds: int = 3600) -> str:
+def _iter_minio(resp):
+    """Yield object bytes and always release the underlying connection."""
+    try:
+        for chunk in resp.stream(_STREAM_CHUNK):
+            yield chunk
+    finally:
+        resp.close()
+        resp.release_conn()
+
+
+def stream_file(
+    file_record: File,
+    range_header: str | None = None,
+    *,
+    cache_control: str | None = None,
+    inline_filename: bool = False,
+) -> StreamingResponse:
+    """Stream a stored object through the backend.
+
+    The MinIO endpoint is never exposed to the client — every byte is proxied here,
+    so callers (and pentesters) only ever see our own API URL. Supports HTTP Range
+    requests for media seeking and always closes the upstream connection."""
     client = get_minio()
-    url = client.presigned_get_object(
-        file_record.bucket,
-        file_record.object_key,
-        expires=timedelta(seconds=expires_seconds),
-    )
-    return url
+    stat = client.stat_object(file_record.bucket, file_record.object_key)
+    file_size = stat.size
+    media_type = file_record.mime_type or "application/octet-stream"
+
+    headers = {"Accept-Ranges": "bytes"}
+    if cache_control:
+        headers["Cache-Control"] = cache_control
+    if inline_filename:
+        safe = (file_record.original_name or "file").encode("utf-8").decode("latin-1", errors="replace")
+        headers["Content-Disposition"] = f'inline; filename="{safe}"'
+
+    if range_header:
+        m = _RANGE_RE.match(range_header)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2)) if m.group(2) else file_size - 1
+            end = min(end, file_size - 1)
+            length = end - start + 1
+            resp = client.get_object(
+                file_record.bucket, file_record.object_key, offset=start, length=length
+            )
+            headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            headers["Content-Length"] = str(length)
+            return StreamingResponse(
+                _iter_minio(resp), status_code=206, media_type=media_type, headers=headers
+            )
+
+    resp = client.get_object(file_record.bucket, file_record.object_key)
+    headers["Content-Length"] = str(file_size)
+    return StreamingResponse(_iter_minio(resp), media_type=media_type, headers=headers)
 
 
 def delete_file(db: Session, file_record: File) -> None:

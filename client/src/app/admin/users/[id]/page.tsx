@@ -1,7 +1,7 @@
 'use client'
-import { use, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, CalendarDays, X, GraduationCap } from 'lucide-react'
+import { ArrowLeft, RefreshCw, CalendarDays, X, GraduationCap, Bot, Loader2, Send, Sparkles, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import {
   apiGetUser, apiUpdateUser, apiUpdateUserStatus,
@@ -9,6 +9,8 @@ import {
 } from '@/lib/api/users'
 import { apiGetUniversity } from '@/lib/api/universities'
 import { apiResetPassword } from '@/lib/api/auth'
+import { apiSendNotification } from '@/lib/api/notifications'
+import { apiAiStudentSummary, apiAiAdmissionScore, apiAiReminderDraft } from '@/lib/api/ai'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -155,9 +157,168 @@ function ProgressSection({ userId }: { userId: string }) {
   )
 }
 
+// ─── AI блок ─────────────────────────────────────────────────────────────────
+function AiSection({ userId }: { userId: string }) {
+  const [summary, setSummary] = useState<{ summary: string; action_items: string[]; risk_level: string; recommendation: string } | null>(null)
+  const [score, setScore] = useState<{ score: number; breakdown: Record<string, number>; verdict: string; weak_points: string[]; strong_points: string[]; recommendations: string[] } | null>(null)
+  const [draft, setDraft] = useState<{ draft: string; user_name: string } | null>(null)
+  const [editedDraft, setEditedDraft] = useState('')
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [scoreLoading, setScoreLoading] = useState(false)
+  const [draftLoading, setDraftLoading] = useState(false)
+  const [sendingDraft, setSendingDraft] = useState(false)
+  const [showDraftModal, setShowDraftModal] = useState(false)
+
+  const loadSummary = async () => {
+    setSummaryLoading(true)
+    try { setSummary(await apiAiStudentSummary(userId)) } catch { toast.error('Ошибка AI') } finally { setSummaryLoading(false) }
+  }
+
+  const loadScore = async () => {
+    setScoreLoading(true)
+    try { setScore(await apiAiAdmissionScore(userId)) } catch { toast.error('Ошибка AI') } finally { setScoreLoading(false) }
+  }
+
+  const generateDraft = async () => {
+    setDraftLoading(true)
+    try {
+      const res = await apiAiReminderDraft(userId)
+      setDraft(res)
+      setEditedDraft(res.draft)
+      setShowDraftModal(true)
+    } catch { toast.error('Ошибка AI') } finally { setDraftLoading(false) }
+  }
+
+  const sendDraft = async () => {
+    setSendingDraft(true)
+    try {
+      await apiSendNotification({ user_id: userId, message: editedDraft })
+      toast.success('Уведомление отправлено')
+      setShowDraftModal(false)
+    } catch { toast.error('Ошибка отправки') } finally { setSendingDraft(false) }
+  }
+
+  const riskColor = (r: string) => r === 'high' ? 'text-red-600 bg-red-50 border-red-200' : r === 'medium' ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200'
+  const riskLabel = (r: string) => r === 'high' ? 'Высокий риск' : r === 'medium' ? 'Средний риск' : 'Низкий риск'
+  const scoreColor = (s: number) => s >= 70 ? 'text-emerald-600' : s >= 45 ? 'text-amber-600' : 'text-red-500'
+  const scoreRing = (s: number) => s >= 70 ? 'bg-emerald-500' : s >= 45 ? 'bg-amber-500' : 'bg-red-500'
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 mb-4">
+        <Bot className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold text-text-primary">AI-Анализ</h2>
+        <span className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-semibold">Groq</span>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3 mb-4">
+        <button onClick={loadSummary} disabled={summaryLoading}
+          className="rounded-xl border border-slate-200 p-3 text-left hover:border-primary/40 hover:bg-primary/3 transition-colors disabled:opacity-50">
+          {summaryLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary mb-2" /> : <Sparkles className="h-5 w-5 text-primary mb-2" />}
+          <p className="text-sm font-medium text-text-primary">Сводка</p>
+          <p className="text-xs text-text-muted">Краткий анализ студента</p>
+        </button>
+        <button onClick={loadScore} disabled={scoreLoading}
+          className="rounded-xl border border-slate-200 p-3 text-left hover:border-primary/40 hover:bg-primary/3 transition-colors disabled:opacity-50">
+          {scoreLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary mb-2" /> : <TrendingUp className="h-5 w-5 text-primary mb-2" />}
+          <p className="text-sm font-medium text-text-primary">Шансы поступления</p>
+          <p className="text-xs text-text-muted">Балл и рекомендации</p>
+        </button>
+        <button onClick={generateDraft} disabled={draftLoading}
+          className="rounded-xl border border-slate-200 p-3 text-left hover:border-primary/40 hover:bg-primary/3 transition-colors disabled:opacity-50">
+          {draftLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary mb-2" /> : <Send className="h-5 w-5 text-primary mb-2" />}
+          <p className="text-sm font-medium text-text-primary">Написать напоминание</p>
+          <p className="text-xs text-text-muted">AI составит текст</p>
+        </button>
+      </div>
+
+      {/* Summary result */}
+      {summary && (
+        <div className="rounded-xl border border-slate-200 p-4 space-y-3 mb-3">
+          <div className="flex items-start gap-3">
+            <span className={`text-xs font-semibold rounded-full border px-2.5 py-1 ${riskColor(summary.risk_level)}`}>{riskLabel(summary.risk_level)}</span>
+          </div>
+          <p className="text-sm text-text-primary leading-relaxed">{summary.summary}</p>
+          {summary.recommendation && <p className="text-sm font-medium text-primary">→ {summary.recommendation}</p>}
+          {summary.action_items.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-text-muted mb-1">Действия:</p>
+              {summary.action_items.map((a, i) => <p key={i} className="text-xs text-text-secondary">• {a}</p>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Admission score result */}
+      {score && (
+        <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16 flex-shrink-0">
+              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#e2e8f0" strokeWidth="6" />
+                <circle cx="32" cy="32" r="28" fill="none" strokeWidth="6"
+                  stroke={score.score >= 70 ? '#10b981' : score.score >= 45 ? '#f59e0b' : '#ef4444'}
+                  strokeDasharray={`${score.score * 1.759} 175.9`}
+                  strokeLinecap="round" />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-sm font-bold ${scoreColor(score.score)}`}>{score.score}</span>
+              </div>
+            </div>
+            <div className="flex-1 grid grid-cols-2 gap-1.5">
+              {Object.entries(score.breakdown).map(([k, v]) => (
+                <div key={k}>
+                  <div className="flex justify-between text-[10px] text-text-muted mb-0.5">
+                    <span>{k.toUpperCase()}</span><span>{v}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`h-full rounded-full ${scoreRing(v)}`} style={{ width: `${v}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-sm text-text-primary leading-relaxed">{score.verdict}</p>
+          {score.weak_points.length > 0 && (
+            <div className="flex items-start gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>{score.weak_points.map((w, i) => <p key={i} className="text-xs text-text-secondary">{w}</p>)}</div>
+            </div>
+          )}
+          {score.strong_points.length > 0 && (
+            <div className="flex items-start gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <div>{score.strong_points.map((s, i) => <p key={i} className="text-xs text-text-secondary">{s}</p>)}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reminder draft modal */}
+      <Modal open={showDraftModal} onClose={() => setShowDraftModal(false)} title="AI-напоминание для студента">
+        <div className="space-y-4">
+          <p className="text-sm text-text-muted">Проверьте текст и при необходимости отредактируйте перед отправкой.</p>
+          <textarea
+            value={editedDraft}
+            onChange={e => setEditedDraft(e.target.value)}
+            rows={5}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setShowDraftModal(false)}>Отмена</Button>
+            <Button className="flex-1" loading={sendingDraft} onClick={sendDraft}>
+              <Send className="h-4 w-4" /> Отправить
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </Card>
+  )
+}
+
 // ─── Главная страница студента ────────────────────────────────────────────────
-export default function AdminUserPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function AdminUserPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const qc = useQueryClient()
   const [resetCreds, setResetCreds] = useState<{ login: string; password: string } | null>(null)
   const [editing, setEditing] = useState(false)
@@ -252,6 +413,9 @@ export default function AdminUserPage({ params }: { params: Promise<{ id: string
 
       {/* Прогресс с индивидуальными дедлайнами */}
       <ProgressSection userId={id} />
+
+      {/* AI анализ */}
+      <AiSection userId={id} />
 
       {/* Reset password modal */}
       <Modal open={!!resetCreds} onClose={() => setResetCreds(null)} title="Новый пароль">

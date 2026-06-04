@@ -1,37 +1,46 @@
 import uuid
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, CredentialsResponse
+from app.schemas.auth import LoginRequest, LoginResponse, CredentialsResponse
 from app.services import notification_service
 from app.models.user import User
 from app.models.activity_log import ActivityLog
 from app.services.user_service import get_user_or_404
 from app.services import auth_service
+from app.core.security import set_auth_cookies, clear_auth_cookies, REFRESH_COOKIE
 from app.core.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
-def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, response: Response, body: LoginRequest, db: Session = Depends(get_db)):
     user = auth_service.authenticate(db, body.login, body.password)
     tokens = auth_service.create_tokens(db, user)
-    return TokenResponse(**tokens)
+    set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
+    return LoginResponse(role=user.role.value)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh", response_model=LoginResponse)
 @limiter.limit("10/minute")
-def refresh(request: Request, body: RefreshRequest, db: Session = Depends(get_db)):
-    tokens = auth_service.refresh_tokens(db, body.refresh_token)
-    return TokenResponse(**tokens)
+def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
+    raw_refresh = request.cookies.get(REFRESH_COOKIE)
+    if not raw_refresh:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token отсутствует")
+    tokens = auth_service.refresh_tokens(db, raw_refresh)
+    set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
+    return LoginResponse(role=tokens.get("role", ""))
 
 
 @router.post("/logout", status_code=204)
-def logout(body: RefreshRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    auth_service.logout(db, body.refresh_token)
+def logout(request: Request, response: Response, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    raw_refresh = request.cookies.get(REFRESH_COOKIE)
+    if raw_refresh:
+        auth_service.logout(db, raw_refresh)
+    clear_auth_cookies(response)
 
 
 @router.post("/reset-password/{user_id}", response_model=CredentialsResponse)

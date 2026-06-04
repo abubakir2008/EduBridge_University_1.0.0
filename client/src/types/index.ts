@@ -55,9 +55,11 @@ export interface University {
   name: string
   country: string
   city: string
+  province?: string
   description?: string
   specialties?: string[] | string
   requirements?: string
+  min_requirements?: string
   tuition_fee?: number
   ranking?: number
   cost?: number
@@ -67,6 +69,27 @@ export interface University {
   photo_file_ids?: string[]
   video_url?: string
   video_file_id?: string
+
+  programs_bachelor_chinese?: string[]
+  programs_masters_chinese?: string[]
+  programs_bachelor_english?: string[]
+  programs_masters_english?: string[]
+
+  has_language_year?: boolean
+
+  tuition_bachelor?: string
+  tuition_masters?: string
+  tuition_language_year?: string
+  application_fee?: string
+
+  dormitory_info?: string
+
+  documents_bachelor?: string[]
+  documents_masters?: string[]
+  documents_language_year?: string[]
+
+  difficulty?: string
+  deadline?: string
 }
 
 export interface Stage {
@@ -143,7 +166,7 @@ export interface Notification {
   message: string
   channel: string
   is_read: boolean
-  created_at: string
+  sent_at: string
 }
 
 export interface FileRecord {
@@ -153,10 +176,8 @@ export interface FileRecord {
   url?: string
 }
 
-export interface TokenResponse {
-  access_token: string
-  refresh_token: string
-  token_type: string
+export interface LoginResponse {
+  role: string
 }
 
 export interface Credentials {

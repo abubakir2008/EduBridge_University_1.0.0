@@ -6,11 +6,15 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
 from app.models.user import User, UserRole
+from app.models.stage import Stage
 from app.models.student_stage_deadline import StudentStageDeadline
 from app.schemas.training import (
     StartTrainingRequest, StudentProgressResponse, CompleteRequirementRequest,
     NoteCreate, NoteUpdate, NoteResponse, DeadlineStatus,
+    UniversityBasic, CurrentStageResponse, StudentRequirementFull,
+    RequirementBasic, LessonBasic,
 )
+from app.schemas.stage import StageResponse
 from app.services import training_service
 
 router = APIRouter(prefix="/training", tags=["training"])
@@ -21,6 +25,83 @@ def _check_owner_or_admin(user_id: uuid.UUID, current_user: User) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступ запрещён")
 
 
+def _build_progress_response(db: Session, progress) -> StudentProgressResponse:
+    """Build a full StudentProgressResponse with nested university, stages, requirements."""
+    # University
+    uni = UniversityBasic.model_validate(progress.university) if progress.university else None
+
+    # All stages for this university
+    all_stages_orm = (
+        db.query(Stage)
+        .filter(Stage.university_id == progress.university_id)
+        .order_by(Stage.order)
+        .all()
+    )
+    all_stages = [StageResponse.model_validate(s) for s in all_stages_orm]
+
+    # Current stage with lessons + student requirements
+    current_stage_resp = None
+    deadline_status = None
+
+    if progress.current_stage:
+        stage = progress.current_stage
+
+        # Deadline
+        student_dl = db.query(StudentStageDeadline).filter(
+            StudentStageDeadline.student_progress_id == progress.id,
+            StudentStageDeadline.stage_id == progress.current_stage_id,
+        ).first()
+        ds = training_service.get_deadline_status(
+            stage,
+            student_deadline=student_dl.deadline if student_dl else None,
+        )
+        dl_status_str = ds["status"] if ds else None
+        days_left = ds.get("days_left") if ds else None
+        if ds:
+            deadline_status = DeadlineStatus(**ds)
+
+        # Lessons
+        lessons = [LessonBasic.model_validate(l) for l in sorted(stage.lessons, key=lambda x: x.order)]
+
+        # Student requirements for current stage (only current stage's reqs)
+        stage_req_ids = {r.id for r in stage.requirements}
+        student_reqs = []
+        for sr in progress.student_requirements:
+            if sr.requirement_id in stage_req_ids:
+                student_reqs.append(StudentRequirementFull(
+                    id=sr.id,
+                    requirement_id=sr.requirement_id,
+                    is_done=sr.completed,
+                    file_id=sr.file_id,
+                    requirement=RequirementBasic.from_orm_req(sr.requirement),
+                ))
+
+        current_stage_resp = CurrentStageResponse(
+            id=stage.id,
+            name=stage.name,
+            description=stage.description,
+            order=stage.order,
+            deadline_status=dl_status_str,
+            days_left=days_left,
+            lessons=lessons,
+            requirements=student_reqs,
+        )
+
+    return StudentProgressResponse(
+        id=progress.id,
+        user_id=progress.user_id,
+        university_id=progress.university_id,
+        current_stage_id=progress.current_stage_id,
+        status=progress.status,
+        started_at=progress.started_at,
+        updated_at=progress.updated_at,
+        university=uni,
+        current_stage=current_stage_resp,
+        all_stages=all_stages,
+        deadline_status=deadline_status,
+    )
+
+
 @router.get("/{user_id}", response_model=StudentProgressResponse)
 def get_progress(
     user_id: uuid.UUID,
@@ -29,19 +110,7 @@ def get_progress(
 ):
     _check_owner_or_admin(user_id, current_user)
     progress = training_service.get_progress_or_404(db, user_id)
-    response = StudentProgressResponse.model_validate(progress)
-    if progress.current_stage:
-        student_dl = db.query(StudentStageDeadline).filter(
-            StudentStageDeadline.student_progress_id == progress.id,
-            StudentStageDeadline.stage_id == progress.current_stage_id,
-        ).first()
-        ds = training_service.get_deadline_status(
-            progress.current_stage,
-            student_deadline=student_dl.deadline if student_dl else None,
-        )
-        if ds:
-            response.deadline_status = DeadlineStatus(**ds)
-    return response
+    return _build_progress_response(db, progress)
 
 
 @router.post("/{user_id}/start", response_model=StudentProgressResponse, status_code=201)
@@ -55,7 +124,19 @@ def start_training(
     from app.services.user_service import get_user_or_404
     user = get_user_or_404(db, user_id)
     progress = training_service.start_training(db, user, body.university_id)
-    return StudentProgressResponse.model_validate(progress)
+    return _build_progress_response(db, progress)
+
+
+@router.delete("/{user_id}/cancel", status_code=204)
+def cancel_training(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _check_owner_or_admin(user_id, current_user)
+    from app.services.user_service import get_user_or_404
+    user = get_user_or_404(db, user_id)
+    training_service.cancel_training(db, user)
 
 
 @router.patch("/{user_id}/requirements/{requirement_id}", response_model=dict)
@@ -85,7 +166,7 @@ def next_stage(
     from app.services.user_service import get_user_or_404
     user = get_user_or_404(db, user_id)
     progress = training_service.advance_stage(db, user, progress)
-    return StudentProgressResponse.model_validate(progress)
+    return _build_progress_response(db, progress)
 
 
 @router.get("/{user_id}/notes", response_model=list[NoteResponse])

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from sqlalchemy import String
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.university import University
@@ -18,16 +19,25 @@ def get_university_or_404(db: Session, university_id: uuid.UUID) -> University:
 
 def list_universities(
     db: Session,
+    search: str | None = None,
     country: str | None = None,
     specialty: str | None = None,
     max_cost: int | None = None,
+    limit: int = 200,
+    offset: int = 0,
 ) -> list[University]:
     q = db.query(University).filter(University.deleted_at.is_(None))
+    if search:
+        q = q.filter(University.name.ilike(f"%{search}%"))
     if country:
         q = q.filter(University.country.ilike(f"%{country}%"))
+    if specialty:
+        # `specialties` is a JSON/array column — match it as text to stay portable.
+        term = f"%{specialty}%"
+        q = q.filter(University.specialties.cast(String).ilike(term))
     if max_cost:
         q = q.filter(University.cost <= max_cost)
-    return q.all()
+    return q.order_by(University.name).offset(offset).limit(limit).all()
 
 
 def create_university(db: Session, data: UniversityCreate) -> University:

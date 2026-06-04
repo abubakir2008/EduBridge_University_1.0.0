@@ -1,6 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, Query, UploadFile, File as FastAPIFile, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Query, UploadFile, File as FastAPIFile, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
@@ -10,20 +9,39 @@ from app.schemas.university import UniversityCreate, UniversityUpdate, Universit
 from app.schemas.stage import StageCreate, StageResponse
 from app.services import university_service
 from app.services import matching_service
-from app.services.file_service import upload_file, get_presigned_url, get_minio
+from app.services.file_service import upload_file, get_minio, stream_file
 
 router = APIRouter(prefix="/universities", tags=["universities"])
 
 
 @router.get("", response_model=list[UniversityResponse])
 def list_universities(
+    search: str | None = Query(None),
     country: str | None = Query(None),
     specialty: str | None = Query(None),
     max_cost: int | None = Query(None),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    return university_service.list_universities(db, country, specialty, max_cost)
+    return university_service.list_universities(
+        db, search=search, country=country, specialty=specialty,
+        max_cost=max_cost, limit=limit, offset=offset,
+    )
+
+
+@router.get("/countries", response_model=list[str])
+def get_countries(db: Session = Depends(get_db), _=Depends(get_current_user)):
+    from app.models.university import University as UniModel
+    rows = (
+        db.query(UniModel.country)
+        .filter(UniModel.deleted_at.is_(None), UniModel.country.isnot(None))
+        .distinct()
+        .order_by(UniModel.country)
+        .all()
+    )
+    return [r[0] for r in rows if r[0]]
 
 
 @router.get("/match", response_model=list[UniversityResponse])
@@ -96,18 +114,14 @@ def upload_photo(
 def stream_photo(
     university_id: uuid.UUID,
     file_id: uuid.UUID,
+    request: Request,
     db: Session = Depends(get_db),
+    _=Depends(get_current_user),
 ):
     record = db.get(File, file_id)
     if not record:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
-    minio = get_minio()
-    response = minio.get_object(record.bucket, record.object_key)
-    return StreamingResponse(
-        response,
-        media_type=record.mime_type or "image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
-    )
+    return stream_file(record, request.headers.get("range"), cache_control="private, max-age=3600")
 
 
 @router.delete("/{university_id}/photos/{file_id}", status_code=204)
@@ -168,43 +182,20 @@ def upload_video(
     return {"file_id": str(record.id)}
 
 
-@router.get("/{university_id}/video/url")
-def get_video_url(
-    university_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _=Depends(get_current_user),
-):
-    """Returns a time-limited presigned URL for the university video. Requires authentication."""
-    uni = university_service.get_university_or_404(db, university_id)
-    if not uni.video_file_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Видео не загружено")
-    record = db.get(File, uni.video_file_id)
-    if not record:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
-    url = get_presigned_url(record, expires_seconds=3600)
-    return {"url": url, "expires_in_seconds": 3600}
-
-
 @router.get("/{university_id}/video")
 def stream_video(
     university_id: uuid.UUID,
+    request: Request,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Stream video (requires auth). Use /video/url for presigned URL approach."""
     uni = university_service.get_university_or_404(db, university_id)
     if not uni.video_file_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Видео не загружено")
     record = db.get(File, uni.video_file_id)
     if not record:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
-    minio = get_minio()
-    response = minio.get_object(record.bucket, record.object_key)
-    return StreamingResponse(
-        response,
-        media_type=record.mime_type or "video/mp4",
-        headers={"Cache-Control": "private, max-age=3600", "Accept-Ranges": "bytes"},
-    )
+    return stream_file(record, request.headers.get("range"), cache_control="private, max-age=3600")
 
 
 @router.delete("/{university_id}/video", status_code=204)

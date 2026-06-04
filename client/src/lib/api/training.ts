@@ -19,5 +19,8 @@ export const apiCompleteRequirement = (
 export const apiAdvanceStage = (userId: string) =>
   client.post<StudentProgress>(`/training/${userId}/stage/next`).then((r) => r.data)
 
+export const apiCancelTraining = (userId: string) =>
+  client.delete(`/training/${userId}/cancel`).then((r) => r.data)
+
 export const apiSaveNote = (userId: string, stageId: string, note: string) =>
-  client.post(`/training/${userId}/stage/${stageId}/notes`, { note }).then((r) => r.data)
+  client.post(`/training/${userId}/stage/${stageId}/notes`, { text: note }).then((r) => r.data)

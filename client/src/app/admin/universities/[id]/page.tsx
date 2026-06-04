@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,13 +14,13 @@ import {
   apiUploadUniversityPhoto, apiDeleteUniversityPhoto,
   getUniversityPhotoUrl,
   apiUploadUniversityVideo, apiDeleteUniversityVideo,
-  getUniversityVideoUrl,
 } from '@/lib/api/universities'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SpecialtiesInput } from '@/components/ui/SpecialtiesInput'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import type { Stage } from '@/types'
@@ -210,7 +210,7 @@ function VideoSection({
 
   const embed = url.trim() ? getEmbedUrl(url.trim()) : null
   const isYoutube = embed?.includes('youtube.com/embed')
-  const uploadedVideoUrl = videoFileId ? getUniversityVideoUrl(uniId) : null
+  const uploadedVideoUrl = videoFileId ? `/api/universities/${uniId}/video` : null
 
   return (
     <div className="space-y-4">
@@ -351,18 +351,49 @@ export default function AdminUniversityPage() {
   const [showAddStage, setShowAddStage] = useState(false)
   const [showAddReq, setShowAddReq] = useState<string | null>(null)
   const [confirmDeleteStage, setConfirmDeleteStage] = useState<string | null>(null)
+  const [specialties, setSpecialties] = useState<string[]>([])
+  const [progBachCn, setProgBachCn] = useState<string[]>([])
+  const [progMastCn, setProgMastCn] = useState<string[]>([])
+  const [progBachEn, setProgBachEn] = useState<string[]>([])
+  const [progMastEn, setProgMastEn] = useState<string[]>([])
+  const [docsBach, setDocsBach] = useState<string[]>([])
+  const [docsMast, setDocsMast] = useState<string[]>([])
+  const [docsLang, setDocsLang] = useState<string[]>([])
 
   const { data: uni, isLoading } = useQuery({ queryKey: ['uni', id], queryFn: () => apiGetUniversity(id) })
   const { data: stages } = useQuery({ queryKey: ['stages', id], queryFn: () => apiGetStages(id) })
+
+  useEffect(() => {
+    if (uni) {
+      const specs = Array.isArray(uni.specialties) ? uni.specialties : uni.specialties ? [uni.specialties] : []
+      setSpecialties(specs)
+      setProgBachCn(uni.programs_bachelor_chinese ?? [])
+      setProgMastCn(uni.programs_masters_chinese ?? [])
+      setProgBachEn(uni.programs_bachelor_english ?? [])
+      setProgMastEn(uni.programs_masters_english ?? [])
+      setDocsBach(uni.documents_bachelor ?? [])
+      setDocsMast(uni.documents_masters ?? [])
+      setDocsLang(uni.documents_language_year ?? [])
+    }
+  }, [uni])
 
   const uniForm = useForm({ values: uni ? {
     name: uni.name,
     country: uni.country,
     city: uni.city,
+    province: uni.province ?? '',
     rating: uni.rating ?? uni.ranking ?? '',
     cost: uni.cost ?? uni.tuition_fee ?? '',
-    specialties: Array.isArray(uni.specialties) ? uni.specialties.join(', ') : (uni.specialties ?? ''),
     description: uni.description ?? '',
+    min_requirements: uni.min_requirements ?? '',
+    tuition_bachelor: uni.tuition_bachelor ?? '',
+    tuition_masters: uni.tuition_masters ?? '',
+    tuition_language_year: uni.tuition_language_year ?? '',
+    application_fee: uni.application_fee ?? '',
+    dormitory_info: uni.dormitory_info ?? '',
+    has_language_year: uni.has_language_year ?? false,
+    difficulty: uni.difficulty ?? '',
+    deadline: uni.deadline ?? '',
   } : undefined })
 
   const stageForm = useForm()
@@ -375,11 +406,17 @@ export default function AdminUniversityPage() {
   })
 
   const handleSaveMain = (d: Record<string, unknown>) => {
-    const specialtiesRaw = d.specialties as string
-    const specialties = specialtiesRaw
-      ? specialtiesRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
-      : []
-    updateUni.mutate({ ...d, specialties })
+    updateUni.mutate({
+      ...d,
+      specialties: specialties.length ? specialties : [],
+      programs_bachelor_chinese: progBachCn,
+      programs_masters_chinese: progMastCn,
+      programs_bachelor_english: progBachEn,
+      programs_masters_english: progMastEn,
+      documents_bachelor: docsBach,
+      documents_masters: docsMast,
+      documents_language_year: docsLang,
+    })
   }
 
   const handleSaveVideo = (videoUrl: string) => {
@@ -431,10 +468,10 @@ export default function AdminUniversityPage() {
             </div>
             <Input label="Страна" {...uniForm.register('country')} />
             <Input label="Город" {...uniForm.register('city')} />
+            <Input label="Провинция" {...uniForm.register('province')} />
             <Input label="Рейтинг" type="number" {...uniForm.register('rating')} />
-            <Input label="Стоимость ($/год)" type="number" {...uniForm.register('cost')} />
             <div className="col-span-2">
-              <Input label="Специальности (через запятую)" {...uniForm.register('specialties')} />
+              <SpecialtiesInput value={specialties} onChange={setSpecialties} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -442,8 +479,80 @@ export default function AdminUniversityPage() {
             <textarea rows={3} {...uniForm.register('description')}
               className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
           </div>
+
+          {/* Требования и сложность */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Требования к поступлению</p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-primary">Минимальные требования</label>
+              <textarea rows={3} placeholder="IELTS 5.5+, GPA выше 75%, возраст до 25 лет..." {...uniForm.register('min_requirements')}
+                className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-primary">Сложность</label>
+                <select {...uniForm.register('difficulty')} className="rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="">— Выбрать —</option>
+                  <option value="Легко">Легко</option>
+                  <option value="Средний">Средний</option>
+                  <option value="Сложно">Сложно</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-primary">Языковой год</label>
+                <label className="flex items-center gap-2 mt-2.5 cursor-pointer">
+                  <input type="checkbox" {...uniForm.register('has_language_year')} className="h-4 w-4 accent-primary" />
+                  <span className="text-sm text-text-primary">Доступен языковой год</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-primary">Дедлайн подачи</label>
+              <textarea rows={2} placeholder="Февраль – апрель 2026 на бакалавр; языковой год до июля 2026" {...uniForm.register('deadline')}
+                className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+          </div>
+
+          {/* Стоимость */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Стоимость</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Бакалавриат" placeholder="25 000 – 40 000 RMB в год" {...uniForm.register('tuition_bachelor')} />
+              <Input label="Магистратура" placeholder="30 000 – 45 000 RMB в год" {...uniForm.register('tuition_masters')} />
+              <Input label="Языковой год" placeholder="15 000 – 22 000 RMB в год" {...uniForm.register('tuition_language_year')} />
+              <Input label="Взнос за подачу" placeholder="Около 800 RMB" {...uniForm.register('application_fee')} />
+            </div>
+          </div>
+
+          {/* Общежитие */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Общежитие</p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-primary">Условия</label>
+              <textarea rows={2} placeholder="Двухместные комнаты, интернет, кондиционер, прачечная..." {...uniForm.register('dormitory_info')}
+                className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+          </div>
+
+          {/* Программы */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Программы обучения</p>
+            <SpecialtiesInput label="Бакалавриат (китайский)" value={progBachCn} onChange={setProgBachCn} />
+            <SpecialtiesInput label="Магистратура (китайский)" value={progMastCn} onChange={setProgMastCn} />
+            <SpecialtiesInput label="Бакалавриат (английский)" value={progBachEn} onChange={setProgBachEn} />
+            <SpecialtiesInput label="Магистратура (английский)" value={progMastEn} onChange={setProgMastEn} />
+          </div>
+
+          {/* Документы */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Документы</p>
+            <SpecialtiesInput label="Для бакалавриата" value={docsBach} onChange={setDocsBach} />
+            <SpecialtiesInput label="Для магистратуры" value={docsMast} onChange={setDocsMast} />
+            <SpecialtiesInput label="Для языкового года" value={docsLang} onChange={setDocsLang} />
+          </div>
+
           <Button type="submit" loading={updateUni.isPending}>
-            <Save className="h-4 w-4" /> Сохранить
+            <Save className="h-4 w-4" /> Сохранить всё
           </Button>
         </form>
       </Card>

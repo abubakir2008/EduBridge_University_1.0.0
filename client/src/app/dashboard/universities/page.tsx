@@ -2,12 +2,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Heart, Star, AlertCircle, ChevronRight } from 'lucide-react'
+import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, DollarSign, MapPin, Play } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
-import { apiGetUniversities, apiMatchUniversities } from '@/lib/api/universities'
+import { apiGetUniversities, apiMatchUniversities, getUniversityPhotoUrl } from '@/lib/api/universities'
 import { apiStartTraining } from '@/lib/api/training'
 import { apiAddFavourite, apiRemoveFavourite, apiGetFavourites } from '@/lib/api/favourites'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -15,7 +14,124 @@ import { Modal } from '@/components/ui/modal'
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import type { University } from '@/types'
+
+function UniCard({
+  uni,
+  isFav,
+  isMatched,
+  onFav,
+  onDetail,
+}: {
+  uni: University
+  isFav: boolean
+  isMatched: boolean
+  onFav: () => void
+  onDetail: () => void
+}) {
+  const coverPhotoId = uni.photo_file_ids?.[0]
+  const coverUrl = coverPhotoId ? getUniversityPhotoUrl(uni.id, coverPhotoId) : null
+  const cost = uni.cost ?? uni.tuition_fee
+  const rating = uni.rating ?? uni.ranking
+  const specs = Array.isArray(uni.specialties)
+    ? uni.specialties
+    : uni.specialties ? [uni.specialties] : []
+
+  return (
+    <div className="group bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+      {/* Обложка */}
+      <div className="relative h-40 bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden flex-shrink-0">
+        {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt={uni.name}
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <GraduationCap className="h-7 w-7 text-primary/50" />
+            </div>
+          </div>
+        )}
+        {/* Рейтинг */}
+        {rating && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">
+            <Star className="h-3 w-3 fill-white" /> #{rating}
+          </div>
+        )}
+        {/* Видео бейдж */}
+        {uni.video_file_id && (
+          <div className="absolute top-2 right-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white font-semibold">
+            <Play className="h-2.5 w-2.5 fill-white" /> VIDEO
+          </div>
+        )}
+        {/* Подходит вам */}
+        {isMatched && (
+          <div className="absolute bottom-2 left-2">
+            <Badge variant="success">Подходит вам</Badge>
+          </div>
+        )}
+        {/* Избранное */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onFav() }}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow hover:bg-white transition-colors"
+        >
+          <Heart className={`h-4 w-4 transition-colors ${isFav ? 'fill-error text-error' : 'text-text-muted hover:text-error'}`} />
+        </button>
+      </div>
+
+      {/* Инфо */}
+      <div className="p-4 flex flex-col flex-1 space-y-2">
+        <div>
+          <h3 className="font-bold text-text-primary text-sm leading-tight line-clamp-1">{uni.name}</h3>
+          <div className="flex items-center gap-1 mt-0.5 text-text-muted text-xs">
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{uni.city}, {uni.country}</span>
+          </div>
+        </div>
+
+        {cost && (
+          <div className="flex items-center gap-1 text-xs">
+            <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="font-semibold text-emerald-600">${cost.toLocaleString()}</span>
+            <span className="text-text-muted">/ год</span>
+          </div>
+        )}
+
+        {specs.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {specs.slice(0, 2).map((s, i) => (
+              <span key={i} className="rounded-full bg-primary/8 text-primary px-2 py-0.5 text-[10px] font-medium truncate max-w-[110px]">{s}</span>
+            ))}
+            {specs.length > 2 && (
+              <span className="rounded-full bg-slate-100 text-slate-500 px-2 py-0.5 text-[10px]">+{specs.length - 2}</span>
+            )}
+          </div>
+        )}
+
+        <div className="mt-auto pt-2">
+          <Button variant="outline" size="sm" className="w-full" onClick={onDetail}>
+            Подробнее <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function VideoPlayer({ universityId }: { universityId: string }) {
+  const src = `/api/universities/${universityId}/video`
+  return (
+    <div>
+      <p className="text-sm font-medium text-text-secondary mb-2">Видео</p>
+      <video src={src} controls className="w-full rounded-xl max-h-64 bg-black" preload="metadata" />
+    </div>
+  )
+}
 
 export default function UniversitiesPage() {
   const { user } = useAuthStore()
@@ -64,20 +180,24 @@ export default function UniversitiesPage() {
       setSelected(null)
       router.push('/dashboard/training')
     },
-    onError: () => toast.error('Не удалось начать поступление'),
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 409) toast.error('Вы уже начали поступление в другой университет')
+      else toast.error('Не удалось начать поступление')
+    },
   })
 
   const displayList = showMatched && matched ? matched : universities ?? []
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text-primary">Университеты</h1>
         <div className="flex items-center gap-2">
-          <a href="/dashboard/compare"
+          <Link href="/dashboard/compare"
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-slate-50 transition-colors">
             Сравнить
-          </a>
+          </Link>
           <Button variant={showMatched ? 'primary' : 'outline'} size="sm" onClick={() => setShowMatched(!showMatched)}>
             {showMatched ? 'Все университеты' : 'Подобрать по моим данным'}
           </Button>
@@ -109,8 +229,8 @@ export default function UniversitiesPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
       ) : displayList.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
@@ -118,7 +238,7 @@ export default function UniversitiesPage() {
           <p className="text-text-secondary">Университеты не найдены</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayList.map((uni, i) => (
             <motion.div
               key={uni.id}
@@ -126,62 +246,42 @@ export default function UniversitiesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <Card className="relative h-full flex flex-col">
-                {showMatched && matched?.find((m) => m.id === uni.id) && (
-                  <Badge variant="success" className="absolute top-4 right-4">Подходит вам</Badge>
-                )}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-text-primary">{uni.name}</h3>
-                    <p className="text-sm text-text-secondary mt-0.5">{uni.city}, {uni.country}</p>
-                  </div>
-                  <button
-                    onClick={() => toggleFav.mutate(uni)}
-                    className="ml-3 shrink-0"
-                  >
-                    <Heart
-                      className={`h-5 w-5 transition-colors ${favIds.has(uni.id) ? 'fill-error text-error' : 'text-text-muted hover:text-error'}`}
-                    />
-                  </button>
-                </div>
-
-                {uni.ranking && (
-                  <div className="flex items-center gap-1 text-xs text-warning mb-2">
-                    <Star className="h-3.5 w-3.5 fill-warning" />
-                    Рейтинг #{uni.ranking}
-                  </div>
-                )}
-
-                {uni.tuition_fee && (
-                  <p className="text-sm text-text-secondary mb-2">
-                    ${uni.tuition_fee.toLocaleString()} / год
-                  </p>
-                )}
-
-                {uni.specialties && (
-                  <p className="text-xs text-text-muted mb-4 line-clamp-2">{uni.specialties}</p>
-                )}
-
-                <div className="mt-auto flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setSelected(uni)}>
-                    Подробнее <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </Card>
+              <UniCard
+                uni={uni}
+                isFav={favIds.has(uni.id)}
+                isMatched={showMatched && !!matched?.find((m) => m.id === uni.id)}
+                onFav={() => toggleFav.mutate(uni)}
+                onDetail={() => setSelected(uni)}
+              />
             </motion.div>
           ))}
         </div>
       )}
 
-      {/* University detail modal */}
+      {/* Детальный модал */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name} maxWidth="max-w-xl">
         {selected && (
           <div className="space-y-4">
+            {/* Фото */}
+            {(selected.photo_file_ids?.length ?? 0) > 0 && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={getUniversityPhotoUrl(selected.id, selected.photo_file_ids![0])}
+                alt={selected.name}
+                className="w-full h-48 object-cover rounded-xl"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            )}
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><span className="text-text-muted">Страна:</span> <span className="font-medium">{selected.country}</span></div>
               <div><span className="text-text-muted">Город:</span> <span className="font-medium">{selected.city}</span></div>
-              {selected.ranking && <div><span className="text-text-muted">Рейтинг:</span> <span className="font-medium">#{selected.ranking}</span></div>}
-              {selected.tuition_fee && <div><span className="text-text-muted">Стоимость:</span> <span className="font-medium">${selected.tuition_fee.toLocaleString()}/год</span></div>}
+              {(selected.rating ?? selected.ranking) && (
+                <div><span className="text-text-muted">Рейтинг:</span> <span className="font-medium">#{selected.rating ?? selected.ranking}</span></div>
+              )}
+              {(selected.cost ?? selected.tuition_fee) && (
+                <div><span className="text-text-muted">Стоимость:</span> <span className="font-medium">${(selected.cost ?? selected.tuition_fee)!.toLocaleString()}/год</span></div>
+              )}
             </div>
 
             {selected.description && (
@@ -194,7 +294,9 @@ export default function UniversitiesPage() {
             {selected.specialties && (
               <div>
                 <p className="text-sm font-medium text-text-secondary mb-1">Специальности</p>
-                <p className="text-sm text-text-primary">{selected.specialties}</p>
+                <p className="text-sm text-text-primary">
+                  {Array.isArray(selected.specialties) ? selected.specialties.join(', ') : selected.specialties}
+                </p>
               </div>
             )}
 
@@ -204,6 +306,9 @@ export default function UniversitiesPage() {
                 <p className="text-sm text-text-primary">{selected.requirements}</p>
               </div>
             )}
+
+            {/* Видео */}
+            {selected.video_file_id && <VideoPlayer universityId={selected.id} />}
 
             <Button
               className="w-full"

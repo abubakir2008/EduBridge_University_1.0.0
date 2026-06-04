@@ -5,6 +5,7 @@ from app.db.session import get_db
 from app.api.deps import require_admin
 from app.models.student_progress import StudentProgress, ProgressStatus
 from app.models.stage import Stage
+from app.models.student_stage_deadline import StudentStageDeadline
 from app.models.user import User, AccountStatus
 from app.models.lead import Lead, LeadStatus
 
@@ -89,7 +90,13 @@ def overdue_students(db: Session = Depends(get_db), _=Depends(require_admin)):
 
     for progress in progresses:
         stage = db.get(Stage, progress.current_stage_id)
-        if stage and stage.deadline and stage.deadline < today:
+        if not stage:
+            continue
+        ssd = db.query(StudentStageDeadline).filter(
+            StudentStageDeadline.student_progress_id == progress.id,
+            StudentStageDeadline.stage_id == progress.current_stage_id,
+        ).first()
+        if ssd and ssd.deadline < today:
             user = db.get(User, progress.user_id)
             results.append({
                 "id": str(progress.user_id),
@@ -130,13 +137,16 @@ def all_students(db: Session = Depends(get_db), _=Depends(require_admin)):
 
 def _count_overdue(db: Session) -> int:
     today = date.today()
-    count = 0
     progresses = db.query(StudentProgress).filter(
         StudentProgress.status == ProgressStatus.in_progress,
         StudentProgress.current_stage_id.isnot(None),
     ).all()
+    count = 0
     for p in progresses:
-        stage = db.get(Stage, p.current_stage_id)
-        if stage and stage.deadline and stage.deadline < today:
+        ssd = db.query(StudentStageDeadline).filter(
+            StudentStageDeadline.student_progress_id == p.id,
+            StudentStageDeadline.stage_id == p.current_stage_id,
+        ).first()
+        if ssd and ssd.deadline < today:
             count += 1
     return count

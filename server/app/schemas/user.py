@@ -38,7 +38,9 @@ class UserUpdate(BaseModel):
     citizenship: Optional[str] = None
     gpa: Optional[float] = None
     ielts_score: Optional[float] = None
+    toefl_score: Optional[int] = None
     sat_score: Optional[int] = None
+    hsk_level: Optional[int] = None
     desired_specialty: Optional[str] = None
     test_scores: Optional[Any] = None
     achievements: Optional[str] = None
@@ -47,6 +49,10 @@ class UserUpdate(BaseModel):
     contact_person: Optional[str] = None
     contact_person_phone: Optional[str] = None
     language_skills: Optional[List[LanguageSkill]] = None
+    max_budget_rmb: Optional[int] = None
+    wants_language_year: Optional[str] = None
+    preferred_difficulty: Optional[str] = None
+    program_level: Optional[str] = None
 
 
 class UserStatusUpdate(BaseModel):
@@ -65,7 +71,9 @@ class UserResponse(BaseModel):
     citizenship: Optional[str]
     gpa: Optional[float]
     ielts_score: Optional[float]
+    toefl_score: Optional[int]
     sat_score: Optional[int]
+    hsk_level: Optional[int]
     desired_specialty: Optional[str]
     test_scores: Optional[Any]
     achievements: Optional[str]
@@ -75,6 +83,10 @@ class UserResponse(BaseModel):
     contact_person_phone: Optional[str]
     contract_file_id: Optional[uuid.UUID]
     language_skills: Optional[List[Any]]
+    max_budget_rmb: Optional[int]
+    wants_language_year: Optional[str]
+    preferred_difficulty: Optional[str]
+    program_level: Optional[str]
     created_at: datetime
 
     model_config = {"from_attributes": True}

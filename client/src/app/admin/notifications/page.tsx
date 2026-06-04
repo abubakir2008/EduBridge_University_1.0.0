@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
+import { StudentSearch } from '@/components/ui/StudentSearch'
 import { apiGetAllNotifications, apiSendNotification } from '@/lib/api/notifications'
 import { apiGetUsers } from '@/lib/api/users'
 import { Card } from '@/components/ui/card'
@@ -37,6 +38,7 @@ const TEMPLATES = [
   { label: 'Одобрение', text: 'Отличная новость! Ваша заявка одобрена. Ожидайте дальнейших инструкций от нашего менеджера.' },
 ]
 
+
 export default function AdminNotificationsPage() {
   const [showSend, setShowSend] = useState(false)
   const { data: notifications, isLoading } = useQuery({
@@ -45,6 +47,7 @@ export default function AdminNotificationsPage() {
   })
   const { data: usersPage } = useQuery({ queryKey: ['users', '', '', 1], queryFn: () => apiGetUsers({ per_page: 200 }) })
   const users = usersPage?.items
+  const userMap = new Map(users?.map(u => [u.id, u]))
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -78,11 +81,15 @@ export default function AdminNotificationsPage() {
             <tbody className="divide-y divide-slate-100">
               {(notifications ?? []).map((n) => (
                 <tr key={n.id} className="hover:bg-surface">
-                  <td className="px-4 py-3 text-text-secondary">{n.user_id.slice(0, 8)}...</td>
+                  <td className="px-4 py-3 text-text-secondary">
+                    {userMap.get(n.user_id)
+                      ? <span>@{userMap.get(n.user_id)!.login}</span>
+                      : <span className="text-text-muted">{n.user_id.slice(0, 8)}…</span>}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary">{typeLabels[n.type] ?? n.type}</td>
-                  <td className="px-4 py-3 text-text-primary max-w-xs truncate">{n.message}</td>
+                  <td className="px-4 py-3 text-text-primary max-w-xs truncate" dangerouslySetInnerHTML={{ __html: n.message }} />
                   <td className="px-4 py-3 text-text-muted">{n.channel}</td>
-                  <td className="px-4 py-3 text-text-muted">{formatDate(n.created_at)}</td>
+                  <td className="px-4 py-3 text-text-muted">{formatDate(n.sent_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -90,17 +97,15 @@ export default function AdminNotificationsPage() {
         </Card>
       )}
 
-      <Modal open={showSend} onClose={() => { setShowSend(false); reset() }} title="Отправить уведомление">
+      <Modal open={showSend} onClose={() => { setShowSend(false); reset() }} title="Отправить уведомление" maxWidth="max-w-lg">
         <form onSubmit={handleSubmit((d) => sendMutation.mutate(d))} className="space-y-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-text-primary">Студент *</label>
-            <select {...register('user_id')}
-              className="h-10 rounded-input border border-slate-200 px-3 text-sm focus:outline-none focus:border-primary">
-              <option value="">— выбрать студента —</option>
-              {(users ?? []).filter(u => u.role === 'student').map((u) => (
-                <option key={u.id} value={u.id}>{u.full_name} (@{u.login})</option>
-              ))}
-            </select>
+            <StudentSearch
+              value={watch('user_id') ?? ''}
+              onChange={(id) => setValue('user_id', id, { shouldValidate: true })}
+              users={(users ?? []).filter(u => u.role === 'student')}
+            />
             {errors.user_id && <p className="text-xs text-error">{errors.user_id.message}</p>}
           </div>
 

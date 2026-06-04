@@ -1,12 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
-import { X, Plus, Check, ArrowLeft } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Plus, Check, ArrowLeft, Bot, Sparkles, Loader2, Trophy, AlertTriangle, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { apiGetUniversities } from '@/lib/api/universities'
 import { getUniversityPhotoUrl } from '@/lib/api/universities'
+import { apiAiCompareUniversities, type UniCompareResult } from '@/lib/api/ai'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 import type { University } from '@/types'
 
 const MAX_COMPARE = 3
@@ -90,6 +92,141 @@ function AddSlot({ universities, selected, onAdd }: {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function AiCompareBlock({ universities }: { universities: University[] }) {
+  const [result, setResult] = useState<UniCompareResult | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const run = async () => {
+    setLoading(true)
+    setResult(null)
+    try {
+      const res = await apiAiCompareUniversities(universities.map(u => u.id))
+      setResult(res)
+    } catch {
+      toast.error('Ошибка AI анализа')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const chanceColor = (c: string) =>
+    c === 'высокие' ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+    : c === 'средние' ? 'text-amber-600 bg-amber-50 border-amber-200'
+    : 'text-red-600 bg-red-50 border-red-200'
+
+  const scoreColor = (s: number) => s >= 70 ? 'bg-emerald-500' : s >= 45 ? 'bg-amber-500' : 'bg-red-400'
+
+  return (
+    <div className="bg-gradient-to-br from-primary/5 to-violet-50 rounded-2xl border border-primary/20 p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Bot className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-text-primary">AI-анализ сравнения</p>
+            <p className="text-xs text-text-muted">Персональный разбор под ваш профиль · Groq</p>
+          </div>
+        </div>
+        <button
+          onClick={run}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-all hover:scale-105 active:scale-95"
+        >
+          {loading
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> Анализирую...</>
+            : <><Sparkles className="h-4 w-4" /> Сравнить через AI</>}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {result && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-5"
+          >
+            {/* Winner */}
+            <div className="flex items-start gap-3 rounded-xl bg-white border border-amber-200 px-4 py-3 shadow-sm">
+              <Trophy className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-0.5">Лучший выбор для вас</p>
+                <p className="font-bold text-text-primary">{result.winner}</p>
+                <p className="text-sm text-text-secondary mt-1 leading-relaxed">{result.winner_reason}</p>
+              </div>
+            </div>
+
+            {/* Per university */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {result.per_university.map((u) => (
+                <div key={u.name} className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-text-primary text-sm line-clamp-1">{u.name}</p>
+                    <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 flex-shrink-0 ${chanceColor(u.admission_chance)}`}>
+                      {u.admission_chance}
+                    </span>
+                  </div>
+
+                  {/* Fit score bar */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-text-muted mb-1">
+                      <span>Совпадение с профилем</span>
+                      <span className="font-semibold">{u.fit_score}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${u.fit_score}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                        className={`h-full rounded-full ${scoreColor(u.fit_score)}`}
+                      />
+                    </div>
+                  </div>
+
+                  {u.pros.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-emerald-600 mb-1">✓ Плюсы</p>
+                      {u.pros.map((p, i) => <p key={i} className="text-xs text-text-secondary leading-relaxed">• {p}</p>)}
+                    </div>
+                  )}
+                  {u.cons.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-red-500 mb-1">✗ Минусы</p>
+                      {u.cons.map((c, i) => <p key={i} className="text-xs text-text-secondary leading-relaxed">• {c}</p>)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Advice + Red flags */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {result.advice && (
+                <div className="flex items-start gap-3 rounded-xl bg-white border border-primary/20 px-4 py-3">
+                  <TrendingUp className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-primary mb-1">Совет</p>
+                    <p className="text-sm text-text-secondary leading-relaxed">{result.advice}</p>
+                  </div>
+                </div>
+              )}
+              {result.red_flags.length > 0 && (
+                <div className="flex items-start gap-3 rounded-xl bg-white border border-amber-200 px-4 py-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-600 mb-1">На что обратить внимание</p>
+                    {result.red_flags.map((f, i) => <p key={i} className="text-xs text-text-secondary">• {f}</p>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -220,6 +357,11 @@ export default function ComparePage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* AI сравнение */}
+      {selected.length >= 2 && (
+        <AiCompareBlock universities={selected} />
       )}
     </motion.div>
   )

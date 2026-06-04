@@ -35,7 +35,9 @@ class User(Base):
 
     gpa = Column(Float, nullable=True)
     ielts_score = Column(Float, nullable=True)
+    toefl_score = Column(Integer, nullable=True)
     sat_score = Column(Integer, nullable=True)
+    hsk_level = Column(Integer, nullable=True)          # 1–6
     desired_specialty = Column(String(255), nullable=True)
     test_scores = Column(JSON, nullable=True)
     achievements = Column(Text, nullable=True)
@@ -45,6 +47,11 @@ class User(Base):
     contact_person_phone = Column(String(50), nullable=True)
     contract_file_id = Column(UUID(as_uuid=True), nullable=True)
     language_skills = Column(JSON, nullable=True, default=list)
+
+    max_budget_rmb = Column(Integer, nullable=True)     # макс бюджет в RMB/год
+    wants_language_year = Column(String(10), nullable=True)   # yes/no/maybe
+    preferred_difficulty = Column(String(20), nullable=True)  # Легко/Средний/Сложно
+    program_level = Column(String(20), nullable=True)         # bachelor/master/language
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)

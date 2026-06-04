@@ -4,6 +4,9 @@ import type { University, Stage, Requirement } from '@/types'
 export const apiGetUniversities = (params?: Record<string, string>) =>
   client.get<University[]>('/universities', { params }).then((r) => r.data)
 
+export const apiGetUniversityCountries = () =>
+  client.get<string[]>('/universities/countries').then((r) => r.data)
+
 export const apiGetUniversity = (id: string) =>
   client.get<University>(`/universities/${id}`).then((r) => r.data)
 

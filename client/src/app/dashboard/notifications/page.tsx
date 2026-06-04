@@ -62,10 +62,11 @@ export default function NotificationsPage() {
           >
             <div className="shrink-0 text-lg">{typeLabels[n.type]?.split(' ')[0] ?? '📬'}</div>
             <div className="flex-1 min-w-0">
-              <p className={cn('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
-                {n.message}
-              </p>
-              <p className="mt-1 text-xs text-text-muted">{formatDate(n.created_at)}</p>
+              <p
+                className={cn('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}
+                dangerouslySetInnerHTML={{ __html: n.message }}
+              />
+              <p className="mt-1 text-xs text-text-muted">{formatDate(n.sent_at)}</p>
             </div>
             {n.is_read && <CheckCheck className="h-4 w-4 text-text-muted shrink-0 mt-0.5" />}
           </div>

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SpecialtiesInput } from '@/components/ui/SpecialtiesInput'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import type { University } from '@/types'
@@ -139,6 +140,7 @@ export default function AdminUniversitiesPage() {
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [specialties, setSpecialties] = useState<string[]>([])
 
   const { data: universities, isLoading } = useQuery({
     queryKey: ['universities', search],
@@ -149,13 +151,9 @@ export default function AdminUniversitiesPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => {
-      const specialtiesRaw = (data.specialties as string) ?? ''
-      const specialties = specialtiesRaw
-        ? specialtiesRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
-        : undefined
       return apiCreateUniversity({
         ...data,
-        specialties,
+        specialties: specialties.length ? specialties : undefined,
         rating: data.rating ? Number(data.rating) : undefined,
         cost: data.cost ? Number(data.cost) : undefined,
       } as Partial<University>)
@@ -165,7 +163,7 @@ export default function AdminUniversitiesPage() {
       toast.success('Университет добавлен')
       setShowCreate(false)
       reset()
-      // Сразу открываем страницу редактирования для загрузки фото
+      setSpecialties([])
       router.push(`/admin/universities/${uni.id}`)
     },
     onError: () => toast.error('Ошибка создания'),
@@ -225,18 +223,19 @@ export default function AdminUniversitiesPage() {
       )}
 
       {/* Создать */}
-      <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Добавить университет">
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); reset(); setSpecialties([]) }} title="Добавить университет">
         <form onSubmit={handleSubmit((d) => createMutation.mutate(d as Record<string, unknown>))} className="space-y-4">
           <Input label="Название *" {...register('name', { required: true })} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Страна *" {...register('country', { required: true })} />
             <Input label="Город *" {...register('city', { required: true })} />
           </div>
+          <Input label="Провинция" placeholder="Shanghai, Jiangsu..." {...register('province')} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Рейтинг" type="number" {...register('rating')} />
             <Input label="Стоимость ($/год)" type="number" {...register('cost')} />
           </div>
-          <Input label="Специальности (через запятую)" {...register('specialties')} />
+          <SpecialtiesInput value={specialties} onChange={setSpecialties} />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-text-primary">Описание</label>
             <textarea rows={3} {...register('description')}

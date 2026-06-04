@@ -1,23 +1,42 @@
 import uuid
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.security import decode_token
+from app.core.security import decode_token, ACCESS_COOKIE
 from app.models.user import User, UserRole, AccountStatus
 
-bearer = HTTPBearer()
+
+def _extract_token(request: Request) -> str | None:
+    """Read the access token from the Authorization header or the httpOnly cookie.
+
+    Browser media tags (<img>/<video>/<iframe>) can't set headers, so cookie auth
+    is what keeps file streaming protected while hiding the storage backend."""
+    auth = request.headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+        if token:
+            return token
+    return request.cookies.get(ACCESS_COOKIE)
 
 
 def _get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    request: Request,
     db: Session = Depends(get_db),
 ) -> User:
-    payload = decode_token(credentials.credentials)
+    token = _extract_token(request)
+    if not token:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Не авторизован")
+
+    payload = decode_token(token)
     if not payload or payload.get("type") != "access":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Токен недействителен")
 
-    user = db.get(User, uuid.UUID(payload["sub"]))
+    try:
+        user_id = uuid.UUID(payload["sub"])
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Токен недействителен")
+
+    user = db.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Пользователь не найден")
     if user.account_status != AccountStatus.active:

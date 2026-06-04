@@ -1,12 +1,14 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
 from app.models.lesson import Lesson
+from app.models.file import File
 from app.schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
+from app.services.file_service import stream_file
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
@@ -75,3 +77,19 @@ def delete_lesson(lesson_id: uuid.UUID, db: Session = Depends(get_db), _=Depends
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Урок не найден")
     db.delete(lesson)
     db.commit()
+
+
+@router.get("/{lesson_id}/stream")
+def stream_lesson_file(
+    lesson_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson or not lesson.file_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
+    record = db.get(File, lesson.file_id)
+    if not record:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Файл не найден")
+    return stream_file(record, request.headers.get("range"), cache_control="private, max-age=3600")

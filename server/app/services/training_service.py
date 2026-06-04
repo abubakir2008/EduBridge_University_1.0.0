@@ -25,7 +25,9 @@ def start_training(db: Session, user: User, university_id: uuid.UUID) -> Student
         StudentProgress.status == ProgressStatus.in_progress,
     ).first()
     if existing:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Обучение уже начато")
+        if existing.university_id == university_id:
+            return existing
+        raise HTTPException(status.HTTP_409_CONFLICT, "Обучение уже начато в другом университете")
 
     uni = db.get(University, university_id)
     if not uni:
@@ -54,6 +56,17 @@ def start_training(db: Session, user: User, university_id: uuid.UUID) -> Student
     db.commit()
     db.refresh(progress)
     return progress
+
+
+def cancel_training(db: Session, user: User) -> None:
+    progress = db.query(StudentProgress).filter(
+        StudentProgress.user_id == user.id,
+        StudentProgress.status == ProgressStatus.in_progress,
+    ).first()
+    if not progress:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Активное обучение не найдено")
+    db.delete(progress)
+    db.commit()
 
 
 def complete_requirement(

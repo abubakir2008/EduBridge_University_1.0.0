@@ -2,17 +2,19 @@
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
-import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement } from '@/lib/api/training'
+import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement, apiCancelTraining } from '@/lib/api/training'
 import { apiUploadFile } from '@/lib/api/files'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 
 type StageReq = { is_done: boolean; requirement: { is_required: boolean } }
 type MinStage = { id: string; name: string; deadline_status?: string; requirements?: StageReq[] }
@@ -81,6 +83,8 @@ export default function TrainingPage() {
   const [note, setNote] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null)
+  const [showChangeModal, setShowChangeModal] = useState(false)
+  const router = useRouter()
 
   const { data: progress, isLoading } = useQuery({
     queryKey: ['training', user?.id],
@@ -104,6 +108,16 @@ export default function TrainingPage() {
     mutationFn: ({ reqId, fileId }: { reqId: string; fileId?: string }) =>
       apiCompleteRequirement(user!.id, reqId, fileId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['training'] }),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: () => apiCancelTraining(user!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['training'] })
+      toast.success('Выбор университета сброшен')
+      router.push('/dashboard/universities')
+    },
+    onError: () => toast.error('Ошибка при смене университета'),
   })
 
   if (isLoading) return (
@@ -152,10 +166,34 @@ export default function TrainingPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">{progress.university?.name}</h1>
-        <p className="text-text-secondary mt-1">Мой путь поступления</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">{progress.university?.name}</h1>
+          <p className="text-text-secondary mt-1">Мой путь поступления</p>
+        </div>
+        {progress.status !== 'completed' && (
+          <Button variant="outline" size="sm" onClick={() => setShowChangeModal(true)}>
+            <RefreshCw className="h-4 w-4 mr-1.5" />
+            Сменить университет
+          </Button>
+        )}
       </div>
+
+      <Modal open={showChangeModal} onClose={() => setShowChangeModal(false)} title="Сменить университет?">
+        <p className="text-text-secondary text-sm mb-6">
+          Весь ваш текущий прогресс поступления будет удалён. Вы сможете выбрать другой университет и начать заново. Это действие необратимо.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="outline" onClick={() => setShowChangeModal(false)}>Отмена</Button>
+          <Button
+            variant="danger"
+            loading={cancelMutation.isPending}
+            onClick={() => cancelMutation.mutate()}
+          >
+            Да, сменить
+          </Button>
+        </div>
+      </Modal>
 
       {/* Status tracker */}
       <StatusTracker progress={progress} allStages={allStages} />

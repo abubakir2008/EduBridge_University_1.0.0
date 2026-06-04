@@ -1,6 +1,8 @@
-import random
+import secrets
 import string
 import re
+
+_rng = secrets.SystemRandom()
 
 try:
     from transliterate import translit
@@ -35,17 +37,17 @@ def generate_login(full_name: str, phone: str) -> str:
 
     digits = re.sub(r"\D", "", phone)
     if len(digits) >= 4:
-        sample = random.sample(list(digits), 4)
+        sample = _rng.sample(list(digits), 4)
     else:
-        sample = [str(random.randint(0, 9)) for _ in range(4)]
+        sample = [str(_rng.randint(0, 9)) for _ in range(4)]
 
     return latin + "".join(sample)
 
 
-def generate_password(length: int = 10) -> str:
+def generate_password(length: int = 12) -> str:
     alphabet = string.ascii_letters + string.digits
     while True:
-        pwd = "".join(random.choices(alphabet, k=length))
+        pwd = "".join(_rng.choice(alphabet) for _ in range(length))
         has_letter = any(c.isalpha() for c in pwd)
         has_digit = any(c.isdigit() for c in pwd)
         if has_letter and has_digit:

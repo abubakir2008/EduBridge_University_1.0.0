@@ -1,5 +1,5 @@
 'use client'
-import { use, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -7,7 +7,7 @@ import {
   ArrowLeft, FileText, Video, BookOpen, Play, Eye, X, Clock, AlertCircle, ImageIcon,
 } from 'lucide-react'
 import { apiGetLesson } from '@/lib/api/lessons'
-import { apiGetFileUrl } from '@/lib/api/files'
+import { getFileContentUrl } from '@/lib/api/files'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const pageVariants = {
@@ -45,8 +45,8 @@ function renderContent(content: string) {
   })
 }
 
-export default function LessonPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function LessonPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const [showDocModal, setShowDocModal] = useState(false)
 
   const { data: lesson, isLoading } = useQuery({
@@ -54,12 +54,15 @@ export default function LessonPage({ params }: { params: Promise<{ id: string }>
     queryFn: () => apiGetLesson(id),
   })
 
-  const { data: fileUrl } = useQuery({
-    queryKey: ['file-url', lesson?.file_id],
-    queryFn: () => apiGetFileUrl(lesson!.file_id!),
-    enabled: !!lesson?.file_id,
-    staleTime: 50 * 60 * 1000,
-  })
+  const fileUrl =
+    lesson?.file_id && lesson?.content_type !== 'video'
+      ? getFileContentUrl(lesson.file_id)
+      : null
+
+  // Relative URL → same-origin through the Next/nginx proxy, so the httpOnly cookie is sent.
+  const videoStreamUrl = lesson?.content_type === 'video' && lesson?.file_id
+    ? `/api/lessons/${lesson.id}/stream`
+    : null
 
   if (isLoading) return (
     <div className="max-w-4xl space-y-6">
@@ -121,14 +124,15 @@ export default function LessonPage({ params }: { params: Promise<{ id: string }>
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          {fileUrl ? (
+          {videoStreamUrl ? (
             <div className="relative aspect-video bg-black" onContextMenu={e => e.preventDefault()}>
               <video
-                src={fileUrl}
+                src={videoStreamUrl}
                 className="w-full h-full object-contain"
                 controls
                 controlsList="nodownload noremoteplayback"
                 disablePictureInPicture
+                preload="metadata"
                 onContextMenu={e => e.preventDefault()}
               />
             </div>

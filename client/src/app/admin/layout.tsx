@@ -6,13 +6,12 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { PageSpinner } from '@/components/ui/spinner'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, accessToken, fetchMe, isLoading } = useAuthStore()
+  const { user, fetchMe, isLoading } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
-    if (!accessToken) { router.push('/login'); return }
     if (!user) fetchMe()
-  }, [accessToken, user, fetchMe, router])
+  }, [user, fetchMe])
 
   useEffect(() => {
     if (user && user.role !== 'admin') router.push('/dashboard/training')
@@ -23,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
-      <main className="flex-1 bg-background-elevated p-6 overflow-auto">
+      <main className="flex-1 bg-background-elevated p-6 ml-64">
         {children}
       </main>
     </div>
