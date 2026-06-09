@@ -54,14 +54,7 @@ export const metadata: Metadata = {
     title: 'EduBridge University — Поступление в зарубежные университеты из СНГ',
     description:
       'Помогаем студентам из Кыргызстана, Казахстана и России поступить в университеты Германии, Италии, Китая, Турции, США. Полное сопровождение от заявки до диплома.',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'EduBridge University — Учёба за границей',
-      },
-    ],
+    // og:image подставляется автоматически из app/opengraph-image.tsx
   },
 
   twitter: {
@@ -69,20 +62,22 @@ export const metadata: Metadata = {
     title: 'EduBridge University — Поступление в зарубежные университеты',
     description:
       'Помогаем студентам из СНГ поступить в университеты Германии, Италии, Китая, Турции, США.',
-    images: ['/og-image.png'],
+    // twitter:image берётся из app/opengraph-image.tsx
   },
 
   alternates: {
     canonical: SITE_URL,
   },
 
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
+  // favicon / apple-icon подставляются из app/icon.tsx и app/apple-icon.tsx
 
   verification: {
-    google: '',
+    // Вставьте код подтверждения из Google Search Console (мета-тег google-site-verification)
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+    // Яндекс.Вебмастер (аудитория РФ/КЗ/КГ)
+    other: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION
+      ? { 'yandex-verification': process.env.NEXT_PUBLIC_YANDEX_VERIFICATION }
+      : {},
   },
 }
 
