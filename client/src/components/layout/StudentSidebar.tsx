@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BookOpen, Building2, Heart, Bell, User, LogOut, GraduationCap } from 'lucide-react'
+import { BookOpen, Building2, Heart, Bell, User, LogOut, GraduationCap, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useQuery } from '@tanstack/react-query'
@@ -15,7 +15,13 @@ const links = [
   { href: '/dashboard/profile', label: 'Профиль', icon: User },
 ]
 
-export function StudentSidebar() {
+export function StudentSidebar({
+  onAiChatToggle,
+  aiChatOpen,
+}: {
+  onAiChatToggle: () => void
+  aiChatOpen: boolean
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuthStore()
@@ -68,18 +74,33 @@ export function StudentSidebar() {
           })}
         </nav>
 
-        <div className="mt-6 border-t border-slate-100 pt-4">
-          <div className="mb-3 px-2">
-            <p className="text-sm font-medium text-text-primary truncate">{user?.full_name}</p>
-            <p className="text-xs text-text-muted">@{user?.login}</p>
-          </div>
+        <div className="mt-6 border-t border-slate-100 pt-4 space-y-1">
           <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface hover:text-error transition-colors"
+            onClick={onAiChatToggle}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium transition-colors',
+              aiChatOpen
+                ? 'bg-primary-50 text-primary'
+                : 'text-text-secondary hover:bg-surface hover:text-text-primary'
+            )}
           >
-            <LogOut className="h-4 w-4" />
-            Выйти
+            <Sparkles className="h-4 w-4" />
+            AI-Ассистент
           </button>
+
+          <div className="pt-2 border-t border-slate-100">
+            <div className="mb-3 px-2">
+              <p className="text-sm font-medium text-text-primary truncate">{user?.full_name}</p>
+              <p className="text-xs text-text-muted">@{user?.login}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface hover:text-error transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Выйти
+            </button>
+          </div>
         </div>
       </aside>
 
