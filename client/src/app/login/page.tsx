@@ -30,7 +30,7 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     setError('')
     try {
-      await login(data.login, data.password)
+      await login(data.login.trim(), data.password)
       const { user } = useAuthStore.getState()
       router.push(user?.role === 'admin' ? '/admin' : '/dashboard/training')
     } catch (e: unknown) {
@@ -66,6 +66,10 @@ export default function LoginPage() {
               placeholder="Ваш логин"
               icon={<User className="h-4 w-4" />}
               error={errors.login?.message}
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="username"
+              spellCheck={false}
               {...register('login')}
             />
             <Input
@@ -74,6 +78,10 @@ export default function LoginPage() {
               placeholder="••••••••"
               icon={<Lock className="h-4 w-4" />}
               error={errors.password?.message}
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="current-password"
+              spellCheck={false}
               {...register('password')}
             />
 
