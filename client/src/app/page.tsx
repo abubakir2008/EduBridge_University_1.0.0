@@ -249,7 +249,7 @@ export default function LandingPage() {
         "@id": "https://university.edubridge.bond/#organization",
         name: "EduBridge University",
         url: "https://university.edubridge.bond",
-        logo: "https://university.edubridge.bond/opengraph-image",
+        logo: "https://university.edubridge.bond/logo.png",
         description:
           "Образовательная платформа, помогающая студентам из СНГ поступить в зарубежные университеты Германии, Италии, Китая, Турции, США.",
         foundingDate: "2021",
