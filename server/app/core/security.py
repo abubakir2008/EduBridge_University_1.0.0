@@ -61,7 +61,15 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 
 
 def clear_auth_cookies(response: Response) -> None:
+    # Атрибуты (secure/samesite/domain/path) должны совпадать с set_auth_cookies,
+    # иначе браузер не сопоставит и НЕ удалит cookie (особенно SameSite=None; Secure).
     kwargs = _cookie_kwargs()
-    kwargs.pop("httponly", None)
-    response.delete_cookie(ACCESS_COOKIE, path="/", domain=kwargs.get("domain"))
-    response.delete_cookie(REFRESH_COOKIE, path="/", domain=kwargs.get("domain"))
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+        response.delete_cookie(
+            name,
+            path=kwargs["path"],
+            domain=kwargs.get("domain"),
+            secure=kwargs["secure"],
+            httponly=kwargs["httponly"],
+            samesite=kwargs["samesite"],
+        )

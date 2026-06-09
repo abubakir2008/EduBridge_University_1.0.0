@@ -40,7 +40,10 @@ client.interceptors.response.use(
         return client(original)
       } catch (e) {
         queue = []
-        if (typeof window !== 'undefined') window.location.href = '/login'
+        // Помечаем причину, чтобы middleware не вернул обратно на дашборд (анти-петля)
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?session=expired'
+        }
         return Promise.reject(error)
       } finally {
         isRefreshing = false

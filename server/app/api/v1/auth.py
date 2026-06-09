@@ -1,5 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
@@ -28,11 +29,22 @@ def login(request: Request, response: Response, body: LoginRequest, db: Session 
 @limiter.limit("10/minute")
 def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
     raw_refresh = request.cookies.get(REFRESH_COOKIE)
-    if not raw_refresh:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token отсутствует")
-    tokens = auth_service.refresh_tokens(db, raw_refresh)
-    set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
-    return LoginResponse(role=tokens.get("role", ""))
+    if raw_refresh:
+        try:
+            tokens = auth_service.refresh_tokens(db, raw_refresh)
+            set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
+            return LoginResponse(role=tokens.get("role", ""))
+        except HTTPException:
+            pass
+
+    # Сессия мертва (нет/протух/отозван refresh) — чистим куки, чтобы фронт+middleware
+    # не зациклились на редиректах /dashboard ⇄ /login из-за «протухшей» access-cookie.
+    fail = JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": "Сессия истекла, войдите снова"},
+    )
+    clear_auth_cookies(fail)
+    return fail
 
 
 @router.post("/logout", status_code=204)
