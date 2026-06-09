@@ -27,5 +27,18 @@ jobs:
             cd /EduBridge_University_1.0.0
             git pull origin main
             docker compose -f docker-compose.prod.yml up -d --build
+            echo "Waiting for app to be ready..."
+            for i in $(seq 1 20); do
+              if docker exec edubridge_app curl -fsS -m 5 http://localhost:8000/health > /dev/null 2>&1; then
+                echo "App is healthy"
+                break
+              fi
+              if [ "$i" -eq 20 ]; then
+                echo "App did not become healthy in time"
+                docker logs --tail 50 edubridge_app
+                exit 1
+              fi
+              echo "Attempt $i/20, retrying in 5s..."
+              sleep 5
+            done
             docker exec edubridge_app alembic upgrade head
-            docker exec edubridge_app sh -c 'curl -fsS -m 10 http://localhost:8000/health'
