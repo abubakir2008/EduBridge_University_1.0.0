@@ -175,19 +175,20 @@ export default function AiPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
         {([
-          { key: 'chat', label: 'Чат', Icon: MessageCircle },
-          { key: 'letter', label: 'Проверка письма', Icon: FileText },
-          { key: 'document', label: 'Проверка документа', Icon: Upload },
-        ] as { key: Tab; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => (
+          { key: 'chat', label: 'Чат', short: 'Чат', Icon: MessageCircle },
+          { key: 'letter', label: 'Проверка письма', short: 'Письмо', Icon: FileText },
+          { key: 'document', label: 'Проверка документа', short: 'Документ', Icon: Upload },
+        ] as { key: Tab; label: string; short: string; Icon: React.ElementType }[]).map(({ key, label, short, Icon }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 sm:px-3 rounded-lg text-sm font-medium transition-all ${
               tab === key ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text-primary'
             }`}
           >
-            <Icon className="h-4 w-4" />
-            {label}
+            <Icon className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">{short}</span>
           </button>
         ))}
       </div>

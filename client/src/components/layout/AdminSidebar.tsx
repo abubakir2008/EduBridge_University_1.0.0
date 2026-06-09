@@ -1,10 +1,11 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Building2, BookOpen, FileText,
-  Bell, LogOut, GraduationCap, ClipboardList, Activity, Bot,
+  Bell, LogOut, GraduationCap, ClipboardList, Activity, Bot, Menu, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -25,18 +26,29 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuthStore()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Закрывать drawer при смене маршрута
+  useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  // Блокировать скролл body, пока drawer открыт
+  useEffect(() => {
+    if (!mobileOpen) return
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
 
   const handleLogout = async () => {
     await logout()
     router.push('/login')
   }
 
-  return (
-    <aside className="fixed left-0 top-0 flex flex-col w-64 h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5 z-40">
+  const renderBody = (indicatorId: string) => (
+    <>
       {/* Logo */}
       <Link href="/admin" className="flex items-center gap-2.5 mb-8 px-3">
         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-          <GraduationCap className="h-4.5 w-4.5 text-white" style={{ width: 18, height: 18 }} />
+          <GraduationCap className="text-white" style={{ width: 18, height: 18 }} />
         </div>
         <div>
           <p className="text-sm font-bold text-text-primary leading-tight">EduBridge</p>
@@ -45,7 +57,7 @@ export function AdminSidebar() {
       </Link>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {links.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -61,7 +73,7 @@ export function AdminSidebar() {
             >
               {active && (
                 <motion.div
-                  layoutId="admin-nav-indicator"
+                  layoutId={indicatorId}
                   className="absolute inset-0 rounded-xl bg-primary/10"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
@@ -92,6 +104,63 @@ export function AdminSidebar() {
           Выйти
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Мобильный топбар */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-3 h-14 border-b border-slate-100 bg-white/95 backdrop-blur px-4">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Открыть меню"
+          className="rounded-lg p-1.5 text-text-secondary hover:bg-slate-100 transition-colors"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link href="/admin" className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+            <GraduationCap className="text-white" style={{ width: 16, height: 16 }} />
+          </div>
+          <span className="text-sm font-bold text-text-primary">EduBridge</span>
+        </Link>
+      </header>
+
+      {/* Десктопный сайдбар */}
+      <aside className="hidden md:flex fixed left-0 top-0 flex-col w-64 h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5 z-40">
+        {renderBody('admin-nav-indicator-desktop')}
+      </aside>
+
+      {/* Мобильный drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+              className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.25 }}
+              className="md:hidden fixed left-0 top-0 z-50 flex flex-col w-72 max-w-[85vw] h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5"
+            >
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label="Закрыть меню"
+                className="absolute right-3 top-4 rounded-lg p-1.5 text-text-muted hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {renderBody('admin-nav-indicator-mobile')}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

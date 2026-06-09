@@ -69,8 +69,8 @@ export default function AdminNotificationsPage() {
       </div>
 
       {isLoading ? <TableSkeleton /> : (
-        <Card padding="none">
-          <table className="w-full text-sm">
+        <Card padding="none" className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
                 {['Кому', 'Тип', 'Сообщение', 'Канал', 'Дата'].map((h) => (

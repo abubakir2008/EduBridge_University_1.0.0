@@ -88,7 +88,8 @@ function LeadsTable({
   }
 
   return (
-    <table className="w-full text-sm">
+    <div className="overflow-x-auto">
+    <table className="w-full min-w-[760px] text-sm">
       <thead className="border-b border-slate-100">
         <tr>
           {['Имя', 'Телефон / Email', 'Интерес', 'Комментарий', 'Статус', 'Дата', 'Действия'].map((h) => (
@@ -158,6 +159,7 @@ function LeadsTable({
         })}
       </tbody>
     </table>
+    </div>
   )
 }
 

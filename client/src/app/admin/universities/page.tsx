@@ -226,12 +226,12 @@ export default function AdminUniversitiesPage() {
       <Modal open={showCreate} onClose={() => { setShowCreate(false); reset(); setSpecialties([]) }} title="Добавить университет">
         <form onSubmit={handleSubmit((d) => createMutation.mutate(d as Record<string, unknown>))} className="space-y-4">
           <Input label="Название *" {...register('name', { required: true })} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Страна *" {...register('country', { required: true })} />
             <Input label="Город *" {...register('city', { required: true })} />
           </div>
           <Input label="Провинция" placeholder="Shanghai, Jiangsu..." {...register('province')} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Рейтинг" type="number" {...register('rating')} />
             <Input label="Стоимость ($/год)" type="number" {...register('cost')} />
           </div>

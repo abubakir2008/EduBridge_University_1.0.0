@@ -53,8 +53,8 @@ export default function AdminCasesPage() {
       </div>
 
       {isLoading ? <TableSkeleton /> : (
-        <Card padding="none">
-          <table className="w-full text-sm">
+        <Card padding="none" className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
                 {['Заголовок', 'Студент', 'Университет', 'Страна', 'Дата', ''].map((h) => (
@@ -92,7 +92,7 @@ export default function AdminCasesPage() {
               {(universities ?? []).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Страна *" {...register('country', { required: true })} />
             <Input label="Специальность *" {...register('specialty', { required: true })} />
           </div>

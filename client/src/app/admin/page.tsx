@@ -251,8 +251,8 @@ export default function AdminDashboardPage() {
             <AlertTriangle className="h-5 w-5 text-error" />
             Студенты с просроченными дедлайнами
           </h2>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>{['ФИО', 'Логин', 'Этап', 'Университет'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-text-muted">{h}</th>
@@ -278,8 +278,8 @@ export default function AdminDashboardPage() {
       <div>
         <h2 className="text-base font-semibold text-text-primary mb-4">Все студенты</h2>
         {!students ? <TableSkeleton /> : (
-          <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>{['ФИО', 'Логин', 'Статус', 'Этап', 'Дата'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-text-muted">{h}</th>

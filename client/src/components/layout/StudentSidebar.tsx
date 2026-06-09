@@ -8,12 +8,12 @@ import { useQuery } from '@tanstack/react-query'
 import { apiGetNotifications } from '@/lib/api/notifications'
 
 const links = [
-  { href: '/dashboard/training', label: 'Мой путь', icon: BookOpen },
-  { href: '/dashboard/universities', label: 'Университеты', icon: Building2 },
-  { href: '/dashboard/favourites', label: 'Избранное', icon: Heart },
-  { href: '/dashboard/notifications', label: 'Уведомления', icon: Bell },
-  { href: '/dashboard/profile', label: 'Профиль', icon: User },
-  { href: '/dashboard/ai', label: 'AI-Ассистент', icon: Sparkles },
+  { href: '/dashboard/training', label: 'Мой путь', shortLabel: 'Путь', icon: BookOpen },
+  { href: '/dashboard/universities', label: 'Университеты', shortLabel: 'Вузы', icon: Building2 },
+  { href: '/dashboard/favourites', label: 'Избранное', shortLabel: 'Избранное', icon: Heart },
+  { href: '/dashboard/notifications', label: 'Уведомления', shortLabel: 'Уведом.', icon: Bell },
+  { href: '/dashboard/profile', label: 'Профиль', shortLabel: 'Профиль', icon: User },
+  { href: '/dashboard/ai', label: 'AI-Ассистент', shortLabel: 'AI', icon: Sparkles },
 ]
 
 export function StudentSidebar() {
@@ -85,23 +85,23 @@ export function StudentSidebar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-2 pb-safe">
-        <div className="flex justify-around">
-          {links.slice(0, 5).map(({ href, label, icon: Icon }) => {
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-1 pb-safe">
+        <div className="flex">
+          {links.map(({ href, label, shortLabel, icon: Icon }) => {
             const isNotif = href.includes('notifications')
             return (
               <Link
                 key={href}
                 href={href}
                 className={cn(
-                  'relative flex flex-col items-center gap-1 px-2 py-2 text-[10px] font-medium',
+                  'relative flex flex-1 min-w-0 flex-col items-center gap-1 px-1 py-2 text-[10px] font-medium',
                   pathname.startsWith(href) ? 'text-primary' : 'text-text-muted'
                 )}
               >
-                <Icon className="h-5 w-5" />
-                {label}
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                <span className="max-w-full truncate leading-tight">{shortLabel ?? label}</span>
                 {isNotif && unread > 0 && (
-                  <span className="absolute -top-0.5 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[9px] text-white">
+                  <span className="absolute top-0.5 right-1/4 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[9px] text-white">
                     {unread}
                   </span>
                 )}

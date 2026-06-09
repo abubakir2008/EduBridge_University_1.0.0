@@ -68,3 +68,10 @@
     @apply bg-white rounded-card border border-slate-100 shadow-card;
   }
 }
+
+@layer utilities {
+  /* Отступ под «safe area» iOS (вырез/домашняя полоса) */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

@@ -231,7 +231,7 @@ function StudentDetailModal({
           <Badge variant={statusVariant[user.account_status] ?? 'muted'}>{statusLabels[user.account_status]}</Badge>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl bg-slate-50 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 rounded-xl bg-slate-50 p-4">
           <div className="min-w-0">
             <p className="text-xs text-text-muted mb-0.5">Телефон</p>
             <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ function StudentDetailModal({
         {(user.contact_person || user.contact_person_phone) && (
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Контактное лицо</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {field('ФИО', user.contact_person)}
               <div className="min-w-0">
                 <p className="text-xs text-text-muted mb-0.5">Телефон</p>
@@ -533,8 +533,8 @@ export default function UsersPage() {
       {isLoading ? (
         <TableSkeleton />
       ) : (
-        <Card padding="none">
-          <table className="w-full text-sm">
+        <Card padding="none" className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -667,7 +667,7 @@ export default function UsersPage() {
       {/* Редактировать */}
       <Modal open={!!editUser} onClose={() => setEditUser(null)} title={`Редактировать: ${editUser?.full_name ?? ''}`}>
         <form onSubmit={editForm.handleSubmit((d) => editMutation.mutate(d))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-2">
               <Input label="ФИО *" error={editForm.formState.errors.full_name?.message} {...editForm.register('full_name')} />
             </div>
@@ -684,7 +684,7 @@ export default function UsersPage() {
           </div>
           <div className="border-t border-slate-100 pt-4">
             <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Контактное лицо</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="ФИО контакта" {...editForm.register('contact_person')} />
               <Input label="Телефон контакта" {...editForm.register('contact_person_phone')} />
             </div>

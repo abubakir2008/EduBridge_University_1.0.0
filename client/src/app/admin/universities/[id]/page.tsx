@@ -462,7 +462,7 @@ export default function AdminUniversityPage() {
       <Card>
         <h2 className="text-lg font-semibold text-text-primary mb-4">Данные университета</h2>
         <form onSubmit={uniForm.handleSubmit((d) => handleSaveMain(d as unknown as Record<string, unknown>))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-2">
               <Input label="Название" {...uniForm.register('name')} />
             </div>
@@ -488,7 +488,7 @@ export default function AdminUniversityPage() {
               <textarea rows={3} placeholder="IELTS 5.5+, GPA выше 75%, возраст до 25 лет..." {...uniForm.register('min_requirements')}
                 className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-primary">Сложность</label>
                 <select {...uniForm.register('difficulty')} className="rounded-input border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
@@ -516,7 +516,7 @@ export default function AdminUniversityPage() {
           {/* Стоимость */}
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Стоимость</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Бакалавриат" placeholder="25 000 – 40 000 RMB в год" {...uniForm.register('tuition_bachelor')} />
               <Input label="Магистратура" placeholder="30 000 – 45 000 RMB в год" {...uniForm.register('tuition_masters')} />
               <Input label="Языковой год" placeholder="15 000 – 22 000 RMB в год" {...uniForm.register('tuition_language_year')} />
