@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, DollarSign, MapPin, Play } from 'lucide-react'
+import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, DollarSign, MapPin, Play, Calendar, CheckCircle2, BedDouble, Languages, Wallet, Award, X } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { apiGetUniversities, apiMatchUniversities, getUniversityPhotoUrl } from '@/lib/api/universities'
 import { apiStartTraining } from '@/lib/api/training'
@@ -235,7 +235,17 @@ export default function UniversitiesPage() {
       ) : displayList.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
           <Search className="h-12 w-12 text-text-muted mb-4" />
-          <p className="text-text-secondary">Университеты не найдены</p>
+          {showMatched ? (
+            <>
+              <p className="text-text-secondary">Под ваши данные ничего не подошло</p>
+              <p className="mt-1 text-sm text-text-muted">Уточните предпочтения в профиле или посмотрите все университеты</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowMatched(false)}>
+                Показать все
+              </Button>
+            </>
+          ) : (
+            <p className="text-text-secondary">Университеты не найдены</p>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -259,66 +269,176 @@ export default function UniversitiesPage() {
       )}
 
       {/* Детальный модал */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name} maxWidth="max-w-xl">
-        {selected && (
-          <div className="space-y-4">
-            {/* Фото */}
-            {(selected.photo_file_ids?.length ?? 0) > 0 && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={getUniversityPhotoUrl(selected.id, selected.photo_file_ids![0])}
-                alt={selected.name}
-                className="w-full h-48 object-cover rounded-xl"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-              />
-            )}
+      <Modal open={!!selected} onClose={() => setSelected(null)} maxWidth="max-w-xl">
+        {selected && (() => {
+          const cost = selected.cost ?? selected.tuition_fee
+          const rating = selected.rating ?? selected.ranking
+          const specs = Array.isArray(selected.specialties)
+            ? selected.specialties
+            : selected.specialties ? [selected.specialties] : []
+          const coverId = selected.photo_file_ids?.[0]
+          const coverUrl = coverId ? getUniversityPhotoUrl(selected.id, coverId) : null
+          const location = [selected.city, selected.province, selected.country].filter(Boolean).join(', ')
+          const requirements = selected.min_requirements || selected.requirements
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-text-muted">Страна:</span> <span className="font-medium">{selected.country}</span></div>
-              <div><span className="text-text-muted">Город:</span> <span className="font-medium">{selected.city}</span></div>
-              {(selected.rating ?? selected.ranking) && (
-                <div><span className="text-text-muted">Рейтинг:</span> <span className="font-medium">#{selected.rating ?? selected.ranking}</span></div>
+          const difficultyStyle: Record<string, string> = {
+            'Легко': 'bg-emerald-500/90',
+            'Средний': 'bg-amber-500/90',
+            'Сложно': 'bg-red-500/90',
+          }
+
+          const tuition = [
+            { label: 'Бакалавриат', value: selected.tuition_bachelor, icon: GraduationCap },
+            { label: 'Магистратура', value: selected.tuition_masters, icon: Award },
+            { label: 'Языковой год', value: selected.tuition_language_year, icon: Languages },
+            { label: 'Взнос за подачу', value: selected.application_fee, icon: Wallet },
+          ].filter((t) => t.value)
+
+          return (
+            <div className="space-y-5">
+              {/* Hero */}
+              <div className="relative -mx-6 -mt-6 h-52 overflow-hidden rounded-t-[16px] bg-gradient-to-br from-primary/25 to-primary/5">
+                {coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverUrl}
+                    alt={selected.name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <GraduationCap className="h-16 w-16 text-primary/30" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+
+                {/* Закрыть */}
+                <button
+                  onClick={() => setSelected(null)}
+                  aria-label="Закрыть"
+                  className="absolute right-3 top-3 rounded-full bg-black/30 p-1.5 text-white backdrop-blur transition-colors hover:bg-black/50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                {/* Сложность */}
+                {selected.difficulty && (
+                  <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-white backdrop-blur ${difficultyStyle[selected.difficulty] ?? 'bg-slate-500/90'}`}>
+                    <AlertCircle className="h-3.5 w-3.5" /> {selected.difficulty}
+                  </span>
+                )}
+
+                {/* Название */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <h2 className="text-xl font-bold leading-tight text-white drop-shadow-sm">{selected.name}</h2>
+                  {location && (
+                    <p className="mt-1 flex items-center gap-1 text-sm text-white/90">
+                      <MapPin className="h-3.5 w-3.5" /> {location}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Быстрые факты */}
+              <div className="flex flex-wrap gap-2">
+                {rating != null && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> Рейтинг #{rating}
+                  </span>
+                )}
+                {cost != null && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                    <DollarSign className="h-3.5 w-3.5" /> от ${cost.toLocaleString()}/год
+                  </span>
+                )}
+                {selected.has_language_year && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+                    <Languages className="h-3.5 w-3.5" /> Языковой год
+                  </span>
+                )}
+              </div>
+
+              {/* Описание */}
+              {selected.description && (
+                <p className="text-sm leading-relaxed text-text-primary">{selected.description}</p>
               )}
-              {(selected.cost ?? selected.tuition_fee) && (
-                <div><span className="text-text-muted">Стоимость:</span> <span className="font-medium">${(selected.cost ?? selected.tuition_fee)!.toLocaleString()}/год</span></div>
+
+              {/* Специальности */}
+              {specs.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">Специальности</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {specs.map((s, i) => (
+                      <span key={i} className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{s}</span>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Стоимость по уровням */}
+              {tuition.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">Стоимость обучения</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {tuition.map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <div className="mb-0.5 flex items-center gap-1.5 text-xs text-text-muted">
+                          <Icon className="h-3.5 w-3.5 text-primary" /> {label}
+                        </div>
+                        <p className="text-sm font-semibold text-text-primary">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Требования */}
+              {requirements && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+                    <CheckCircle2 className="h-4 w-4" /> Требования к поступлению
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-text-primary">{requirements}</p>
+                </div>
+              )}
+
+              {/* Дедлайн */}
+              {selected.deadline && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                    <Calendar className="h-4 w-4" /> Сроки подачи
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-text-primary">{selected.deadline}</p>
+                </div>
+              )}
+
+              {/* Проживание */}
+              {selected.dormitory_info && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
+                    <BedDouble className="h-4 w-4" /> Проживание
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-text-primary">{selected.dormitory_info}</p>
+                </div>
+              )}
+
+              {/* Видео */}
+              {selected.video_file_id && <VideoPlayer universityId={selected.id} />}
+
+              {/* Закреплённый CTA */}
+              <div className="sticky bottom-0 -mx-6 -mb-6 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
+                <Button
+                  className="w-full"
+                  loading={startMutation.isPending}
+                  onClick={() => startMutation.mutate(selected.id)}
+                >
+                  Начать поступление
+                </Button>
+              </div>
             </div>
-
-            {selected.description && (
-              <div>
-                <p className="text-sm font-medium text-text-secondary mb-1">Описание</p>
-                <p className="text-sm text-text-primary">{selected.description}</p>
-              </div>
-            )}
-
-            {selected.specialties && (
-              <div>
-                <p className="text-sm font-medium text-text-secondary mb-1">Специальности</p>
-                <p className="text-sm text-text-primary">
-                  {Array.isArray(selected.specialties) ? selected.specialties.join(', ') : selected.specialties}
-                </p>
-              </div>
-            )}
-
-            {selected.requirements && (
-              <div>
-                <p className="text-sm font-medium text-text-secondary mb-1">Требования</p>
-                <p className="text-sm text-text-primary">{selected.requirements}</p>
-              </div>
-            )}
-
-            {/* Видео */}
-            {selected.video_file_id && <VideoPlayer universityId={selected.id} />}
-
-            <Button
-              className="w-full"
-              loading={startMutation.isPending}
-              onClick={() => startMutation.mutate(selected.id)}
-            >
-              Начать поступление
-            </Button>
-          </div>
-        )}
+          )
+        })()}
       </Modal>
     </div>
   )

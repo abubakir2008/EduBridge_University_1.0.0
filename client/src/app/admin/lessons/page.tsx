@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Plus, Pencil, Trash2, ArrowLeft, BookOpen, ChevronUp, ChevronDown,
-  RefreshCw, CheckCircle, Video, FileText, Image, AlignLeft,
+  RefreshCw, CheckCircle, Video, FileText, Image, AlignLeft, Globe, MapPin, Search,
 } from 'lucide-react'
 import { apiGetLessons, apiCreateLesson, apiUpdateLesson, apiDeleteLesson } from '@/lib/api/lessons'
 import { apiGetUniversities, apiGetStages } from '@/lib/api/universities'
@@ -24,12 +24,13 @@ const CONTENT_TYPES = [
 ] as const
 
 type Stage = { id: string; name: string; order: number; university_id: string }
-type University = { id: string; name: string; country: string }
+type University = { id: string; name: string; country: string; city?: string; province?: string }
 
 export default function AdminLessonsPage() {
   const qc = useQueryClient()
   const [selectedUni, setSelectedUni] = useState<University | null>(null)
   const [selectedStage, setSelectedStage] = useState<Stage | null>(null)
+  const [uniSearch, setUniSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Lesson | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -45,7 +46,7 @@ export default function AdminLessonsPage() {
   const [uploadedFileName, setUploadedFileName] = useState('')
   const [formUniId, setFormUniId] = useState('')
 
-  const { data: lessonsPage, isLoading: lessonsLoading } = useQuery({
+  const { data: lessonsPage } = useQuery({
     queryKey: ['lessons'],
     queryFn: () => apiGetLessons({ per_page: 500 }),
   })
@@ -155,36 +156,109 @@ export default function AdminLessonsPage() {
 
   const ctInfo = (ct: string) => CONTENT_TYPES.find(t => t.value === ct)
 
-  /* ── View: select university ── */
-  if (!selectedUni) return (
-    <div className="max-w-5xl space-y-6">
-      <h1 className="text-2xl font-bold text-text-primary">Уроки — выберите университет</h1>
-      {universities.length === 0 ? (
-        <p className="text-text-muted text-center py-20">Университетов пока нет</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {universities.map(uni => (
-            <motion.button
-              key={uni.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => setSelectedUni(uni)}
-              className="bg-white border border-slate-100 rounded-card p-6 text-left hover:border-primary/40 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <BookOpen className="w-5 h-5 text-primary" />
+  /* ── View: select university (сгруппировано: страна → город → университет) ── */
+  if (!selectedUni) {
+    const q = uniSearch.trim().toLowerCase()
+    const filtered = (universities as University[]).filter((u) =>
+      !q ||
+      u.name.toLowerCase().includes(q) ||
+      (u.country ?? '').toLowerCase().includes(q) ||
+      (u.city ?? '').toLowerCase().includes(q)
+    )
+
+    // Группировка: страна → город → [вузы]
+    const byCountry = new Map<string, Map<string, University[]>>()
+    for (const u of filtered) {
+      const country = u.country?.trim() || 'Без страны'
+      const city = u.city?.trim() || 'Без города'
+      if (!byCountry.has(country)) byCountry.set(country, new Map())
+      const cityMap = byCountry.get(country)!
+      if (!cityMap.has(city)) cityMap.set(city, [])
+      cityMap.get(city)!.push(u)
+    }
+    const groups = [...byCountry.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, 'ru'))
+      .map(([country, cityMap]) => ({
+        country,
+        total: [...cityMap.values()].reduce((n, arr) => n + arr.length, 0),
+        cities: [...cityMap.entries()]
+          .sort(([a], [b]) => a.localeCompare(b, 'ru'))
+          .map(([city, unis]) => ({
+            city,
+            unis: [...unis].sort((a, b) => a.name.localeCompare(b.name)),
+          })),
+      }))
+
+    return (
+      <div className="max-w-5xl space-y-6">
+        <h1 className="text-2xl font-bold text-text-primary">Уроки — выберите университет</h1>
+
+        {universities.length > 0 && (
+          <Input
+            placeholder="Поиск по стране, городу или названию..."
+            icon={<Search className="h-4 w-4" />}
+            value={uniSearch}
+            onChange={(e) => setUniSearch(e.target.value)}
+          />
+        )}
+
+        {universities.length === 0 ? (
+          <p className="text-text-muted text-center py-20">Университетов пока нет</p>
+        ) : groups.length === 0 ? (
+          <p className="text-text-muted text-center py-20">Ничего не найдено</p>
+        ) : (
+          <div className="space-y-8">
+            {groups.map((g) => (
+              <div key={g.country} className="space-y-4">
+                {/* Страна */}
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <Globe className="h-5 w-5 text-primary flex-shrink-0" />
+                  <h2 className="text-lg font-bold text-text-primary">{g.country}</h2>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-text-muted">
+                    {g.total}
+                  </span>
                 </div>
-                <span className="text-xs bg-slate-100 text-text-muted px-2 py-1 rounded-full">{uni.country}</span>
+
+                {g.cities.map((c) => (
+                  <div key={c.city} className="space-y-2">
+                    {/* Город */}
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
+                      <MapPin className="h-4 w-4 text-text-muted flex-shrink-0" />
+                      {c.city}
+                      <span className="text-xs text-text-muted">· {c.unis.length}</span>
+                    </div>
+
+                    {/* Университеты */}
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {c.unis.map((uni) => (
+                        <motion.button
+                          key={uni.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          onClick={() => setSelectedUni(uni)}
+                          className="group flex items-center gap-3 rounded-card border border-slate-100 bg-white p-4 text-left transition-all hover:border-primary/40 hover:shadow-md"
+                        >
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-text-primary">{uni.name}</p>
+                            {uni.province && (
+                              <p className="truncate text-xs text-text-muted">{uni.province}</p>
+                            )}
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="font-semibold text-text-primary mb-1 line-clamp-2">{uni.name}</p>
-              <p className="text-text-muted text-xs">{lessonsLoading ? '...' : `${lessons.length} уроков всего`}</p>
-            </motion.button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   /* ── View: select stage ── */
   if (!selectedStage) return (
