@@ -8,6 +8,7 @@ import { apiGetUniversities } from '@/lib/api/universities'
 import { getUniversityPhotoUrl } from '@/lib/api/universities'
 import { apiAiCompareUniversities, type UniCompareResult } from '@/lib/api/ai'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Modal } from '@/components/ui/modal'
 import { toast } from 'sonner'
 import type { University } from '@/types'
 
@@ -66,33 +67,34 @@ function AddSlot({ universities, selected, onAdd }: {
   const available = universities.filter((u) => !selected.includes(u.id))
 
   return (
-    <div className="relative">
+    <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}
         className="h-32 rounded-xl border-2 border-dashed border-slate-200 w-full flex flex-col items-center justify-center gap-2 text-text-muted hover:border-primary/40 hover:text-primary transition-colors"
       >
         <Plus className="w-6 h-6" />
         <span className="text-sm font-medium">Добавить</span>
       </button>
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-100 shadow-xl z-20 max-h-60 overflow-y-auto">
-          {available.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-text-muted">Все университеты добавлены</p>
-          ) : (
-            available.map((u) => (
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Выберите университет" maxWidth="max-w-md">
+        {available.length === 0 ? (
+          <p className="py-4 text-center text-sm text-text-muted">Все университеты уже добавлены</p>
+        ) : (
+          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+            {available.map((u) => (
               <button
                 key={u.id}
                 onClick={() => { onAdd(u); setOpen(false) }}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors flex items-center justify-between gap-2"
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
               >
-                <span className="font-medium text-text-primary line-clamp-1">{u.name}</span>
-                <span className="text-xs text-text-muted flex-shrink-0">{u.country}</span>
+                <span className="font-medium text-text-primary">{u.name}</span>
+                <span className="flex-shrink-0 text-xs text-text-muted">{u.city}, {u.country}</span>
               </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </>
   )
 }
 
@@ -273,89 +275,94 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {/* Columns */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: `160px repeat(${MAX_COMPARE}, 1fr)` }}>
-        {/* Empty top-left */}
-        <div />
+      {/* Сравнение — единый горизонтальный скролл, чтобы колонки не обрезались на узких экранах */}
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="min-w-[600px] space-y-4">
+          {/* Columns */}
+          <div className="grid gap-4" style={{ gridTemplateColumns: `120px repeat(${MAX_COMPARE}, minmax(150px, 1fr))` }}>
+            {/* Empty top-left */}
+            <div />
 
-        {/* University headers */}
-        {selected.map((uni) => (
-          <UniCard key={uni.id} uni={uni} onRemove={() => removeUni(uni.id)} />
-        ))}
-        {Array.from({ length: slots }).map((_, i) => (
-          <AddSlot key={i} universities={universities} selected={selected.map((u) => u.id)} onAdd={addUni} />
-        ))}
+            {/* University headers */}
+            {selected.map((uni) => (
+              <UniCard key={uni.id} uni={uni} onRemove={() => removeUni(uni.id)} />
+            ))}
+            {Array.from({ length: slots }).map((_, i) => (
+              <AddSlot key={i} universities={universities} selected={selected.map((u) => u.id)} onAdd={addUni} />
+            ))}
+          </div>
+
+          {/* Comparison table */}
+          {selected.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-hidden">
+              {FIELDS.map((field, fi) => (
+                <div
+                  key={field.key}
+                  className={`grid gap-0 ${fi % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
+                  style={{ gridTemplateColumns: `120px repeat(${MAX_COMPARE}, minmax(150px, 1fr))` }}
+                >
+                  {/* Row label */}
+                  <div className="px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide flex items-center border-r border-slate-100">
+                    {field.label}
+                  </div>
+
+                  {/* Values for selected unis */}
+                  {selected.map((uni) => {
+                    const raw = uni[field.key]
+                    const display = field.format ? field.format(raw) : (raw ?? '—')
+                    return (
+                      <div key={uni.id} className="px-4 py-3 text-sm text-text-secondary border-r border-slate-100 last:border-r-0">
+                        {String(display)}
+                      </div>
+                    )
+                  })}
+
+                  {/* Empty slots */}
+                  {Array.from({ length: slots }).map((_, i) => (
+                    <div key={i} className="px-4 py-3 border-r border-slate-100 last:border-r-0" />
+                  ))}
+                </div>
+              ))}
+
+              {/* Specialties full list */}
+              {selected.some((u) => Array.isArray(u.specialties) && (u.specialties as string[]).length > 3) && (
+                <div
+                  className="grid border-t border-slate-100"
+                  style={{ gridTemplateColumns: `120px repeat(${MAX_COMPARE}, minmax(150px, 1fr))` }}
+                >
+                  <div className="px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide flex items-start border-r border-slate-100">
+                    Все специальности
+                  </div>
+                  {selected.map((uni) => {
+                    const specs = Array.isArray(uni.specialties) ? uni.specialties as string[] : []
+                    return (
+                      <div key={uni.id} className="px-4 py-3 text-sm text-text-secondary border-r border-slate-100 last:border-r-0">
+                        {specs.length === 0 ? '—' : (
+                          <ul className="space-y-1">
+                            {specs.map((s, i) => (
+                              <li key={i} className="flex items-center gap-1.5">
+                                <Check className="w-3 h-3 text-primary flex-shrink-0" />
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {Array.from({ length: slots }).map((_, i) => (
+                    <div key={i} className="px-4 py-3 border-r border-slate-100 last:border-r-0" />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {selected.length === 0 && (
         <div className="text-center py-16 text-text-muted">
-          <p className="text-base">Добавьте университеты выше для сравнения</p>
-        </div>
-      )}
-
-      {/* Comparison table */}
-      {selected.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-100 shadow-card overflow-hidden">
-          {FIELDS.map((field, fi) => (
-            <div
-              key={field.key}
-              className={`grid gap-0 ${fi % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
-              style={{ gridTemplateColumns: `160px repeat(${MAX_COMPARE}, 1fr)` }}
-            >
-              {/* Row label */}
-              <div className="px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide flex items-center border-r border-slate-100">
-                {field.label}
-              </div>
-
-              {/* Values for selected unis */}
-              {selected.map((uni) => {
-                const raw = uni[field.key]
-                const display = field.format ? field.format(raw) : (raw ?? '—')
-                return (
-                  <div key={uni.id} className="px-4 py-3 text-sm text-text-secondary border-r border-slate-100 last:border-r-0">
-                    {String(display)}
-                  </div>
-                )
-              })}
-
-              {/* Empty slots */}
-              {Array.from({ length: slots }).map((_, i) => (
-                <div key={i} className="px-4 py-3 border-r border-slate-100 last:border-r-0" />
-              ))}
-            </div>
-          ))}
-
-          {/* Specialties full list */}
-          {selected.some((u) => Array.isArray(u.specialties) && (u.specialties as string[]).length > 3) && (
-            <div
-              className="grid border-t border-slate-100"
-              style={{ gridTemplateColumns: `160px repeat(${MAX_COMPARE}, 1fr)` }}
-            >
-              <div className="px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide flex items-start border-r border-slate-100">
-                Все специальности
-              </div>
-              {selected.map((uni) => {
-                const specs = Array.isArray(uni.specialties) ? uni.specialties as string[] : []
-                return (
-                  <div key={uni.id} className="px-4 py-3 text-sm text-text-secondary border-r border-slate-100 last:border-r-0">
-                    {specs.length === 0 ? '—' : (
-                      <ul className="space-y-1">
-                        {specs.map((s, i) => (
-                          <li key={i} className="flex items-center gap-1.5">
-                            <Check className="w-3 h-3 text-primary flex-shrink-0" />
-                            <span>{s}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )
-              })}
-              {Array.from({ length: slots }).map((_, i) => (
-                <div key={i} className="px-4 py-3 border-r border-slate-100 last:border-r-0" />
-              ))}
-            </div>
-          )}
+          <p className="text-base">Добавьте университеты для сравнения</p>
         </div>
       )}
 
