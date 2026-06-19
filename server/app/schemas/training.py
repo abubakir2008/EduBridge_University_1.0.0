@@ -37,6 +37,7 @@ class LessonBasic(BaseModel):
     content: Optional[str] = None
     file_id: Optional[uuid.UUID] = None
     order: int
+    viewed: bool = False
 
     model_config = {"from_attributes": True}
 

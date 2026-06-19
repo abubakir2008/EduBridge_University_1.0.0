@@ -2,6 +2,7 @@ services:
   app:
     build: .
     container_name: edubridge_app
+    init: true
     ports:
       - "8000:8000"
     env_file: .env
@@ -18,7 +19,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-edubridge}
       POSTGRES_USER: ${POSTGRES_USER:-edubridge_university}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Abubakiru@123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:

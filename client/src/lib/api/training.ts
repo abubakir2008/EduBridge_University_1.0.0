@@ -24,3 +24,6 @@ export const apiCancelTraining = (userId: string) =>
 
 export const apiSaveNote = (userId: string, stageId: string, note: string) =>
   client.post(`/training/${userId}/stage/${stageId}/notes`, { text: note }).then((r) => r.data)
+
+export const apiMarkLessonViewed = (lessonId: string) =>
+  client.post(`/lessons/${lessonId}/view`).then((r) => r.data)

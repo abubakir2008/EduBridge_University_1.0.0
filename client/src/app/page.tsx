@@ -48,6 +48,7 @@ const navLinks = [
   { label: "Как это работает", href: "#how" },
   { label: "Что входит", href: "#services" },
   { label: "Кейсы", href: "#cases" },
+  { label: "Блог", href: "/blog" },
   { label: "Контакты", href: "#contact" },
 ];
 
@@ -153,10 +154,11 @@ const advantages = [
 ];
 
 const countries = [
-  { flag: "🇮🇹", name: "Италия" },
-  { flag: "🇨🇳", name: "Китай" },
-  { flag: "🇹🇷", name: "Турция" },
-  { flag: "🇺🇸", name: "США" },
+  // ISO 3166-1 alpha-2 коды — эмодзи-флаги не рисуются на Windows, отдаём SVG-картинки.
+  { code: "it", name: "Италия" },
+  { code: "cn", name: "Китай" },
+  { code: "tr", name: "Турция" },
+  { code: "us", name: "США" },
 ];
 
 const leadSchema = z.object({
@@ -299,15 +301,25 @@ export default function LandingPage() {
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
-              {navLinks.map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  className={`text-sm font-medium transition-colors ${activeSection === href.slice(1) ? "text-primary" : "text-text-secondary hover:text-text-primary"}`}
-                >
-                  {label}
-                </a>
-              ))}
+              {navLinks.map(({ label, href }) =>
+                href.startsWith("/") ? (
+                  <Link
+                    key={label}
+                    href={href}
+                    className="text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    {label}
+                  </Link>
+                ) : (
+                  <a
+                    key={label}
+                    href={href}
+                    className={`text-sm font-medium transition-colors ${activeSection === href.slice(1) ? "text-primary" : "text-text-secondary hover:text-text-primary"}`}
+                  >
+                    {label}
+                  </a>
+                ),
+              )}
             </nav>
 
             <div className="flex items-center gap-3">
@@ -335,88 +347,99 @@ export default function LandingPage() {
               animate={{ opacity: 1, height: "auto" }}
               className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-3"
             >
-              {navLinks.map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-sm font-medium text-text-secondary hover:text-primary"
-                >
-                  {label}
-                </a>
-              ))}
+              {navLinks.map(({ label, href }) =>
+                href.startsWith("/") ? (
+                  <Link
+                    key={label}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-sm font-medium text-text-secondary hover:text-primary"
+                  >
+                    {label}
+                  </Link>
+                ) : (
+                  <a
+                    key={label}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-sm font-medium text-text-secondary hover:text-primary"
+                  >
+                    {label}
+                  </a>
+                ),
+              )}
             </motion.div>
           )}
         </header>
 
-        {/* ── Hero ── */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/40 to-white pt-24 pb-20 sm:pb-32">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-100/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-violet-100/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
+        {/* ── Hero (тёмный navy + glassmorphism) ── */}
+        <section className="section-navy pt-28 pb-24 sm:pb-32">
+          {/* Точечный паттерн */}
+          <div className="absolute inset-0 opacity-20 bg-dot-grid pointer-events-none" />
+          {/* Glow-блобы */}
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-primary/25 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-violet-500/15 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative mx-auto max-w-6xl px-4">
             <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
               {/* Left */}
               <div className="flex-1 text-center lg:text-left">
                 <motion.div {...fadeUp(0)}>
-                  <span className="inline-flex items-center gap-2 bg-blue-50 text-primary text-sm font-semibold px-4 py-2 rounded-full mb-6 border border-blue-100">
-                    <Sparkles className="w-4 h-4" />
+                  <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white text-sm font-bold px-4 py-2 rounded-full mb-6 backdrop-blur-sm">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse flex-shrink-0" />
                     Для студентов из Кыргызстана, Казахстана и России
                   </span>
                 </motion.div>
 
                 <motion.h1
                   {...fadeUp(0.08)}
-                  className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-text-primary leading-tight tracking-tight"
+                  className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] tracking-tight"
                 >
                   Учёба за границей —{" "}
-                  <span className="text-primary">это не мечта.</span>{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-primary-light to-blue-200">
+                    это не мечта.
+                  </span>{" "}
                   <span className="block mt-1">Это стратегия.</span>
                 </motion.h1>
 
                 <motion.p
                   {...fadeUp(0.16)}
-                  className="mt-6 text-lg text-text-secondary max-w-xl mx-auto lg:mx-0 leading-relaxed"
+                  className="mt-6 text-lg text-white/70 max-w-xl mx-auto lg:mx-0 leading-relaxed"
                 >
                   EduBridge помогает поступить в зарубежные университеты на
                   грант, со стипендией и в сильные вузы мира. С нами уже начали
                   обучение{" "}
-                  <strong className="text-text-primary">
-                    более 3000 студентов
-                  </strong>
-                  .
+                  <strong className="text-white">более 3000 студентов</strong>.
                 </motion.p>
 
                 <motion.div
                   {...fadeUp(0.22)}
-                  className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
+                  className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3"
                 >
-                  <Button
-                    size="lg"
+                  <button
                     onClick={() =>
                       formRef.current?.scrollIntoView({ behavior: "smooth" })
                     }
-                    className="group"
+                    className="flex items-center gap-2 px-8 py-4 bg-white text-navy rounded-2xl font-bold text-lg hover:bg-slate-100 transition-all shadow-2xl shadow-black/20 group"
                   >
                     Оставить заявку
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
+                  </button>
+                  <button
                     onClick={() =>
                       document
                         .getElementById("how")
                         ?.scrollIntoView({ behavior: "smooth" })
                     }
+                    className="flex items-center gap-2 px-6 py-4 border-2 border-white/30 text-white rounded-2xl font-bold text-base hover:bg-white/10 hover:border-white/50 transition-all"
                   >
                     Как это работает <ChevronDown className="h-4 w-4" />
-                  </Button>
+                  </button>
                 </motion.div>
 
                 <motion.div
                   {...fadeUp(0.28)}
-                  className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-6"
+                  className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-5"
                 >
                   {[
                     "Бесплатная консультация",
@@ -425,48 +448,50 @@ export default function LandingPage() {
                   ].map((item) => (
                     <div
                       key={item}
-                      className="flex items-center gap-2 text-sm text-text-secondary"
+                      className="flex items-center gap-2 text-sm text-white/70 font-medium"
                     >
-                      <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       {item}
                     </div>
                   ))}
                 </motion.div>
               </div>
 
-              {/* Right — Visual card */}
+              {/* Right — стеклянная карточка прогресса */}
               <motion.div
                 initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-                className="flex-1 w-full max-w-md lg:max-w-none"
+                className="flex-1 w-full max-w-md lg:max-w-none relative"
               >
-                <div className="relative">
-                  <div className="bg-white rounded-card shadow-card border border-slate-100 p-6 space-y-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                <div className="glass-card p-7 text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
                         <GraduationCap className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold text-text-primary">
+                        <p className="font-semibold text-white">
                           Этап 3: Подача документов
                         </p>
-                        <p className="text-xs text-text-muted">
-                          Берлинский технический университет
+                        <p className="text-xs text-white/60">
+                          Университет Цинхуа, Пекин
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-text-secondary">
+                    <div className="bg-white/10 rounded-2xl p-4 mb-4">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-white/70">
                           Прогресс поступления
                         </span>
-                        <span className="font-semibold text-primary">72%</span>
+                        <span className="font-bold">72%</span>
                       </div>
-                      <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
                         <motion.div
-                          className="h-full bg-gradient-to-r from-primary to-blue-400 rounded-full"
+                          className="h-full bg-gradient-to-r from-blue-300 to-primary-light rounded-full"
                           initial={{ width: 0 }}
                           animate={{ width: "72%" }}
                           transition={{ duration: 1.2, delay: 0.5 }}
@@ -474,110 +499,103 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-4">
                       {[
-                        { label: "✅ Сертификат TOEFL получен", done: true },
-                        { label: "✅ Мотивационное письмо готово", done: true },
-                        { label: "⏳ Академическая справка", done: false },
+                        { label: "Сертификат HSK получен", done: true },
+                        { label: "Мотивационное письмо готово", done: true },
+                        { label: "Академическая справка", done: false },
                       ].map((item) => (
                         <div
                           key={item.label}
-                          className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${item.done ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-text-secondary"}`}
+                          className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-white/10"
                         >
-                          <span>{item.label}</span>
+                          {item.done ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-white/50 flex-shrink-0" />
+                          )}
+                          <span
+                            className={
+                              item.done ? "text-white" : "text-white/60"
+                            }
+                          >
+                            {item.label}
+                          </span>
                         </div>
                       ))}
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        {
-                          label: "Вузов",
-                          value: "3",
-                          color: "text-primary bg-blue-50",
-                        },
-                        {
-                          label: "Дней",
-                          value: "14",
-                          color: "text-amber-600 bg-amber-50",
-                        },
-                        {
-                          label: "Этапов",
-                          value: "5/7",
-                          color: "text-emerald-600 bg-emerald-50",
-                        },
+                        { label: "Вузов", value: "3" },
+                        { label: "Дней", value: "14" },
+                        { label: "Этапов", value: "5/7" },
                       ].map((s) => (
-                        <div
-                          key={s.label}
-                          className={`rounded-xl p-3 text-center ${s.color}`}
-                        >
-                          <p className="text-lg font-bold">{s.value}</p>
-                          <p className="text-xs font-medium opacity-70">
+                        <div key={s.label} className="stat-tile">
+                          <p className="text-lg font-extrabold">{s.value}</p>
+                          <p className="text-xs text-white/60 mt-0.5">
                             {s.label}
                           </p>
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  <motion.div
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                    className="hidden sm:flex absolute -top-4 -right-4 bg-white shadow-card border border-slate-100 rounded-xl px-4 py-3 text-sm items-center gap-2"
-                  >
-                    <span className="text-lg">🎉</span>
-                    <div>
-                      <p className="font-semibold text-text-primary text-xs">
-                        Зачислен!
-                      </p>
-                      <p className="text-text-muted text-xs">
-                        Грант 100% · Берлин
-                      </p>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    animate={{ y: [0, 6, 0] }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: 1,
-                    }}
-                    className="hidden sm:block absolute -bottom-6 -left-6 bg-white shadow-card border border-slate-100 rounded-xl px-4 py-3 text-sm max-w-[200px]"
-                  >
-                    <p className="text-xs text-text-muted">Новый студент</p>
-                    <p className="font-semibold text-text-primary text-xs mt-0.5">
-                      Айгерим · Бишкек → Мюнхен
-                    </p>
-                    <p className="text-xs text-emerald-600 font-medium mt-1">
-                      Стипендия получена ✓
-                    </p>
-                  </motion.div>
                 </div>
+
+                {/* Плавающие карточки */}
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="hidden sm:flex absolute -top-4 -right-4 bg-white shadow-2xl border border-slate-100 rounded-2xl px-4 py-3 items-center gap-2.5"
+                >
+                  <span className="text-2xl">🎉</span>
+                  <div>
+                    <p className="font-bold text-gray-900 text-xs">Зачислен!</p>
+                    <p className="text-gray-400 text-xs">Грант 100% · Пекин</p>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 1,
+                  }}
+                  className="hidden sm:block absolute -bottom-4 -left-4 bg-white shadow-2xl border border-slate-100 rounded-2xl px-4 py-3 max-w-[200px]"
+                >
+                  <p className="text-xs text-gray-400 font-medium">
+                    Новый студент
+                  </p>
+                  <p className="font-bold text-gray-900 text-xs mt-0.5">
+                    Айгерим · Бишкек → Шанхай
+                  </p>
+                  <p className="text-xs text-emerald-600 font-bold mt-1">
+                    Стипендия получена ✓
+                  </p>
+                </motion.div>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* ── Stats ── */}
-        <section className="border-y border-slate-100 bg-white py-12">
+        {/* ── Stats (градиентная полоса) ── */}
+        <section className="gradient-brand py-12">
           <div className="mx-auto max-w-5xl px-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center text-white">
               {stats.map((s, i) => (
-                <motion.div
-                  key={i}
-                  {...fadeUp(i * 0.08)}
-                  className="text-center"
-                >
-                  <p className="text-3xl lg:text-4xl font-extrabold text-primary">
+                <motion.div key={i} {...fadeUp(i * 0.08)}>
+                  <p className="text-3xl lg:text-4xl font-extrabold">
                     {s.value}
                   </p>
-                  <p className="mt-1 text-sm text-text-muted">{s.label}</p>
+                  <p className="mt-1 text-sm text-white/70 font-medium">
+                    {s.label}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -759,7 +777,15 @@ export default function LandingPage() {
               {countries.map((c, i) => (
                 <motion.div key={c.name} {...fadeUp(i * 0.06)}>
                   <div className="bg-white rounded-card border border-slate-100 shadow-card p-5 flex flex-col items-center gap-3 hover:border-primary/30 hover:shadow-md transition-all duration-200 cursor-default">
-                    <span className="text-4xl">{c.flag}</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`https://flagcdn.com/${c.code}.svg`}
+                      alt={`Флаг — ${c.name}`}
+                      width={48}
+                      height={32}
+                      loading="lazy"
+                      className="w-12 h-8 rounded-md object-cover shadow-sm ring-1 ring-slate-200"
+                    />
                     <span className="font-medium text-text-primary text-sm">
                       {c.name}
                     </span>
@@ -882,43 +908,47 @@ export default function LandingPage() {
           </section>
         )}
 
-        {/* ── CTA ── */}
-        <section className="py-20 bg-white">
-          <div className="mx-auto max-w-3xl px-4 text-center">
-            <motion.div {...fadeUp()}>
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <GraduationCap className="w-8 h-8 text-primary" />
+        {/* ── CTA (navy-градиентный блок) ── */}
+        <section className="px-4 py-20">
+          <motion.div
+            {...fadeUp()}
+            className="gradient-brand mx-auto max-w-5xl rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/3 pointer-events-none" />
+            <div className="relative">
+              <div className="w-16 h-16 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <GraduationCap className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-text-primary">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
                 Готов начать путь к международному образованию?
               </h2>
-              <p className="mt-4 text-text-secondary max-w-lg mx-auto">
+              <p className="mt-4 text-white/70 max-w-lg mx-auto">
                 Оставь заявку — получи бесплатную консультацию и узнай, в какие
                 университеты можешь поступить уже в этом году.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button
-                  size="lg"
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
                   onClick={() =>
                     formRef.current?.scrollIntoView({ behavior: "smooth" })
                   }
-                  className="group"
+                  className="flex items-center gap-2 px-8 py-4 bg-white text-navy rounded-2xl font-bold text-lg hover:bg-slate-100 transition-all shadow-2xl shadow-black/20 group"
                 >
                   Оставить заявку
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
+                </button>
                 <Link href="/login">
-                  <Button variant="outline" size="lg">
+                  <button className="flex items-center gap-2 px-6 py-4 border-2 border-white/30 text-white rounded-2xl font-bold text-base hover:bg-white/10 hover:border-white/50 transition-all">
                     Войти в кабинет
-                  </Button>
+                  </button>
                 </Link>
               </div>
-              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-text-muted">
+              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/60">
                 <Users className="w-4 h-4" />
                 Уже 3000+ студентов из Кыргызстана, Казахстана и России
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         </section>
 
         {/* ── Lead form ── */}
@@ -1030,25 +1060,25 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Footer ── */}
-        <footer className="border-t border-slate-100 py-12 bg-slate-50">
+        {/* ── Footer (тёмный navy) ── */}
+        <footer className="bg-navy text-white py-12">
           <div className="mx-auto max-w-6xl px-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
               {/* Brand */}
               <div>
                 <Link href="/" className="flex items-center gap-2 mb-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
                     <GraduationCap className="h-4 w-4 text-white" />
                   </div>
-                  <span className="font-bold text-text-primary">
+                  <span className="font-bold text-white">
                     EduBridge University
                   </span>
                 </Link>
-                <p className="text-sm text-text-muted leading-relaxed">
+                <p className="text-sm text-white/60 leading-relaxed">
                   Помогаем студентам из СНГ поступить в зарубежные университеты
                   — от заявки до диплома.
                 </p>
-                <div className="flex items-center gap-2 mt-4 text-sm text-text-muted">
+                <div className="flex items-center gap-2 mt-4 text-sm text-white/60">
                   <Clock className="w-4 h-4 flex-shrink-0" />
                   <span>Работаем с 2021 года</span>
                 </div>
@@ -1056,7 +1086,7 @@ export default function LandingPage() {
 
               {/* Navigation */}
               <div>
-                <p className="text-sm font-semibold text-text-primary mb-4">
+                <p className="text-sm font-semibold text-white mb-4">
                   Навигация
                 </p>
                 <nav className="flex flex-col gap-2">
@@ -1064,7 +1094,7 @@ export default function LandingPage() {
                     <a
                       key={label}
                       href={href}
-                      className="text-sm text-text-secondary hover:text-primary transition-colors"
+                      className="text-sm text-white/60 hover:text-white transition-colors"
                     >
                       {label}
                     </a>
@@ -1074,13 +1104,11 @@ export default function LandingPage() {
 
               {/* Contacts */}
               <div>
-                <p className="text-sm font-semibold text-text-primary mb-4">
-                  Контакты
-                </p>
-                <div className="flex flex-col gap-3 text-sm text-text-secondary">
+                <p className="text-sm font-semibold text-white mb-4">Контакты</p>
+                <div className="flex flex-col gap-3 text-sm text-white/60">
                   <a
                     href="mailto:educationbridge.kg@gmail.com"
-                    className="flex items-center gap-2 hover:text-primary transition-colors"
+                    className="flex items-center gap-2 hover:text-white transition-colors"
                   >
                     <Send className="w-4 h-4 flex-shrink-0" />
                     educationbridge.kg@gmail.com
@@ -1089,7 +1117,7 @@ export default function LandingPage() {
                     href="https://instagram.com/edubridge.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 hover:text-primary transition-colors"
+                    className="flex items-center gap-2 hover:text-white transition-colors"
                   >
                     <Globe className="w-4 h-4 flex-shrink-0" />
                     @edubridge_kg
@@ -1106,7 +1134,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-text-muted">
+            <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/50">
               <p>© 2025 EduBridge University. Все права защищены.</p>
               <p>Кыргызстан · Казахстан · Россия</p>
             </div>

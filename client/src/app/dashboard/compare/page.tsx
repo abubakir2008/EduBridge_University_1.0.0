@@ -1,8 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Plus, Check, ArrowLeft, Bot, Sparkles, Loader2, Trophy, AlertTriangle, TrendingUp } from 'lucide-react'
+import { X, Plus, Check, ArrowLeft, Sparkles, Loader2, Trophy, AlertTriangle, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { apiGetUniversities } from '@/lib/api/universities'
 import { getUniversityPhotoUrl } from '@/lib/api/universities'
@@ -10,14 +10,18 @@ import { apiAiCompareUniversities, type UniCompareResult } from '@/lib/api/ai'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { toast } from 'sonner'
+import { useBarashekStore } from '@/lib/store/barashekStore'
+import { speak } from '@/lib/barashekVoice'
+import { BarashekMascot } from '@/components/ui/BarashekMascot'
+import { formatCost } from '@/lib/currency'
 import type { University } from '@/types'
 
 const MAX_COMPARE = 3
 
-const FIELDS: { label: string; key: keyof University; format?: (v: unknown) => string }[] = [
+const FIELDS: { label: string; key: keyof University; format?: (v: unknown, uni: University) => string }[] = [
   { label: 'Страна', key: 'country' },
   { label: 'Город', key: 'city' },
-  { label: 'Стоимость ($/год)', key: 'cost', format: (v) => v ? `$${(v as number).toLocaleString()}` : '—' },
+  { label: 'Стоимость (/год)', key: 'cost', format: (v, uni) => v ? formatCost(v as number, uni.country) : '—' },
   { label: 'Рейтинг', key: 'rating', format: (v) => v ? `#${v}` : '—' },
   { label: 'Специальности', key: 'specialties', format: (v) => {
     if (!v) return '—'
@@ -69,6 +73,7 @@ function AddSlot({ universities, selected, onAdd }: {
   return (
     <>
       <button
+        data-tour="tour-compare-add"
         onClick={() => setOpen(true)}
         className="h-32 rounded-xl border-2 border-dashed border-slate-200 w-full flex flex-col items-center justify-center gap-2 text-text-muted hover:border-primary/40 hover:text-primary transition-colors"
       >
@@ -76,21 +81,52 @@ function AddSlot({ universities, selected, onAdd }: {
         <span className="text-sm font-medium">Добавить</span>
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Выберите университет" maxWidth="max-w-md">
+      <Modal open={open} onClose={() => setOpen(false)} title="Выберите университет" maxWidth="max-w-2xl">
         {available.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">Все университеты уже добавлены</p>
         ) : (
-          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-            {available.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => { onAdd(u); setOpen(false) }}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
-              >
-                <span className="font-medium text-text-primary">{u.name}</span>
-                <span className="flex-shrink-0 text-xs text-text-muted">{u.city}, {u.country}</span>
-              </button>
-            ))}
+          <div className="grid max-h-[70vh] gap-3 overflow-y-auto sm:grid-cols-2">
+            {available.map((u) => {
+              const photoId = (u.photo_file_ids ?? [])[0]
+              const photoUrl = photoId ? getUniversityPhotoUrl(u.id, photoId) : null
+              const cost = u.cost ?? u.tuition_fee
+              const rating = u.rating ?? u.ranking
+              const specs = Array.isArray(u.specialties) ? u.specialties : (u.specialties ? [u.specialties] : [])
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => { onAdd(u); setOpen(false) }}
+                  className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 text-left transition-all hover:border-primary/40 hover:shadow-md"
+                >
+                  <div className="relative h-24 w-full bg-gradient-to-br from-primary/10 to-primary/5">
+                    {photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoUrl} alt={u.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-3xl font-bold text-primary/30">{u.name[0]}</div>
+                    )}
+                    {rating != null && (
+                      <span className="absolute left-2 top-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-white">★ #{rating}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col gap-1.5 p-3">
+                    <p className="text-sm font-semibold leading-tight text-text-primary line-clamp-2">{u.name}</p>
+                    <p className="text-xs text-text-muted">{u.city}, {u.country}</p>
+                    {cost != null && (
+                      <p className="text-xs font-semibold text-emerald-600">{formatCost(cost as number, u.country)}/год</p>
+                    )}
+                    {specs.length > 0 && (
+                      <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                        {specs.slice(0, 3).map((s, i) => (
+                          <span key={i} className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] font-medium text-primary">{s}</span>
+                        ))}
+                        {specs.length > 3 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">+{specs.length - 3}</span>}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
       </Modal>
@@ -98,9 +134,23 @@ function AddSlot({ universities, selected, onAdd }: {
   )
 }
 
-function AiCompareBlock({ universities }: { universities: University[] }) {
+function AiCompareBlock({ universities, autoRun = false }: { universities: University[]; autoRun?: boolean }) {
   const [result, setResult] = useState<UniCompareResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const muted = useBarashekStore((s) => s.muted)
+  const autoRanRef = useState({ done: false })[0]
+
+  // Барашек озвучивает вывод сравнения, когда он появился
+  useEffect(() => {
+    if (!result) return
+    const parts = [
+      result.winner ? `Лучший выбор для тебя — ${result.winner}.` : '',
+      result.winner_reason || '',
+      result.advice ? `Мой совет: ${result.advice}` : '',
+    ].filter(Boolean)
+    if (parts.length) speak(parts.join(' '), muted)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result])
 
   const run = async () => {
     setLoading(true)
@@ -115,6 +165,15 @@ function AiCompareBlock({ universities }: { universities: University[] }) {
     }
   }
 
+  // Авто-запуск анализа, если пришли со страницы «Избранное» с выбранными вузами
+  useEffect(() => {
+    if (autoRun && !autoRanRef.done && universities.length >= 2 && !loading && !result) {
+      autoRanRef.done = true
+      void run()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRun, universities.length])
+
   const chanceColor = (c: string) =>
     c === 'высокие' ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
     : c === 'средние' ? 'text-amber-600 bg-amber-50 border-amber-200'
@@ -126,15 +185,14 @@ function AiCompareBlock({ universities }: { universities: University[] }) {
     <div className="bg-gradient-to-br from-primary/5 to-violet-50 rounded-2xl border border-primary/20 p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <Bot className="h-5 w-5 text-primary" />
-          </div>
+          <BarashekMascot mood={loading ? 'thinking' : result ? 'talking' : 'idle'} size={44} />
           <div>
             <p className="font-semibold text-text-primary">AI-анализ сравнения</p>
-            <p className="text-xs text-text-muted">Персональный разбор под ваш профиль · Groq</p>
+            <p className="text-xs text-text-muted">Барашек разберёт под твой профиль и озвучит 🔊</p>
           </div>
         </div>
         <button
+          data-tour="tour-compare-ai"
           onClick={run}
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-all hover:scale-105 active:scale-95"
@@ -235,11 +293,25 @@ function AiCompareBlock({ universities }: { universities: University[] }) {
 
 export default function ComparePage() {
   const [selected, setSelected] = useState<University[]>([])
+  const [preIds, setPreIds] = useState<string[] | null>(null)
+  const [appliedPre, setAppliedPre] = useState(false)
 
   const { data: universities = [], isLoading } = useQuery({
     queryKey: ['universities-list'],
     queryFn: () => apiGetUniversities(),
   })
+
+  // Пришли с «Избранного» со списком вузов в URL (?ids=...) — предвыбираем их
+  useEffect(() => {
+    const ids = new URLSearchParams(window.location.search).get('ids')
+    if (ids) setPreIds(ids.split(',').filter(Boolean))
+  }, [])
+
+  useEffect(() => {
+    if (appliedPre || !preIds || universities.length === 0) return
+    const pre = universities.filter((u) => preIds.includes(u.id)).slice(0, MAX_COMPARE)
+    if (pre.length) { setSelected(pre); setAppliedPre(true) }
+  }, [preIds, universities, appliedPre])
 
   const addUni = (uni: University) => {
     if (selected.length < MAX_COMPARE) setSelected((prev) => [...prev, uni])
@@ -309,7 +381,7 @@ export default function ComparePage() {
                   {/* Values for selected unis */}
                   {selected.map((uni) => {
                     const raw = uni[field.key]
-                    const display = field.format ? field.format(raw) : (raw ?? '—')
+                    const display = field.format ? field.format(raw, uni) : (raw ?? '—')
                     return (
                       <div key={uni.id} className="px-4 py-3 text-sm text-text-secondary border-r border-slate-100 last:border-r-0">
                         {String(display)}
@@ -368,7 +440,7 @@ export default function ComparePage() {
 
       {/* AI сравнение */}
       {selected.length >= 2 && (
-        <AiCompareBlock universities={selected} />
+        <AiCompareBlock universities={selected} autoRun={appliedPre} />
       )}
     </motion.div>
   )

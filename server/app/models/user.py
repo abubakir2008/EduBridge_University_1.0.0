@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import Column, String, Enum, Float, Integer, Text, DateTime, JSON, Date
+from sqlalchemy import Column, String, Enum, Float, Integer, Text, DateTime, JSON, Date, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -52,6 +52,10 @@ class User(Base):
     wants_language_year = Column(String(10), nullable=True)   # yes/no/maybe
     preferred_difficulty = Column(String(20), nullable=True)  # Легко/Средний/Сложно
     program_level = Column(String(20), nullable=True)         # bachelor/master/language
+
+    # Онбординг с AI-персонажем «Барашек»
+    is_onboarded = Column(Boolean, nullable=False, default=False)  # завершил ли первичный диалог-онбординг
+    onboarding_history = Column(JSON, nullable=True, default=list)  # сохранённая история чата онбординга
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)

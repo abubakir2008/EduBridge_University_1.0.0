@@ -1,4 +1,6 @@
 # Secrets — NEVER commit
+.env
+**/.env
 server/.env
 client/.env.local
 client/.env.production
@@ -15,6 +17,12 @@ client/node_modules/
 client/.next/
 client/out/
 
+# Playwright (e2e)
+client/test-results/
+client/playwright-report/
+client/playwright/.cache/
+client/e2e/.auth/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -23,3 +31,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Local-only notes — NEVER commit
+*.local.md

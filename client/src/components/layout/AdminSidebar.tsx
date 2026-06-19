@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Building2, BookOpen, FileText,
-  Bell, LogOut, GraduationCap, ClipboardList, Activity, Bot, Menu, X,
+  Bell, LogOut, GraduationCap, ClipboardList, Activity, Bot, Menu, X, Newspaper,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -16,6 +16,7 @@ const links = [
   { href: '/admin/users', label: 'Студенты', icon: Users },
   { href: '/admin/universities', label: 'Университеты', icon: Building2 },
   { href: '/admin/cases', label: 'Кейсы', icon: FileText },
+  { href: '/admin/blog', label: 'Блог', icon: Newspaper },
   { href: '/admin/lessons', label: 'Уроки', icon: BookOpen },
   { href: '/admin/notifications', label: 'Уведомления', icon: Bell },
   { href: '/admin/activity', label: 'Журнал действий', icon: Activity },
@@ -46,18 +47,19 @@ export function AdminSidebar() {
   const renderBody = (indicatorId: string) => (
     <>
       {/* Logo */}
-      <Link href="/admin" className="flex items-center gap-2.5 mb-8 px-3">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+      <Link href="/admin" className="flex items-center gap-2.5 mb-6 px-3">
+        <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0">
           <GraduationCap className="text-white" style={{ width: 18, height: 18 }} />
         </div>
         <div>
-          <p className="text-sm font-bold text-text-primary leading-tight">EduBridge</p>
-          <p className="text-[10px] text-text-muted uppercase tracking-widest">Admin Panel</p>
+          <p className="text-sm font-bold text-white leading-tight">EduBridge</p>
+          <p className="text-[10px] text-white/50 uppercase tracking-widest">Admin Panel</p>
         </div>
       </Link>
+      <div className="mx-1 mb-4 h-px bg-white/10" />
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto">
         {links.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -65,43 +67,43 @@ export function AdminSidebar() {
               key={href}
               href={href}
               className={cn(
-                'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                'relative flex items-center gap-3 rounded-xl px-4 py-3 transition-all',
                 active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-text-secondary hover:bg-slate-50 hover:text-text-primary'
+                  ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/25 scale-[1.01]'
+                  : 'text-white/55 hover:bg-white/10 hover:text-white/90'
               )}
             >
               {active && (
                 <motion.div
                   layoutId={indicatorId}
-                  className="absolute inset-0 rounded-xl bg-primary/10"
+                  className="absolute inset-0 rounded-xl bg-white/10"
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
               )}
-              <Icon className={cn('relative h-4 w-4 flex-shrink-0', active ? 'text-primary' : 'text-text-muted')} />
-              <span className="relative">{label}</span>
+              <Icon className="relative h-5 w-5 flex-shrink-0" />
+              <span className="relative text-xs font-bold uppercase tracking-wide">{label}</span>
             </Link>
           )
         })}
       </nav>
 
       {/* User */}
-      <div className="mt-4 border-t border-slate-100 pt-4 space-y-1">
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+      <div className="mt-4 space-y-1">
+        <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-white/10 mb-1">
+          <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-light rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md shadow-primary/40">
             {user?.full_name?.charAt(0) ?? 'A'}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-text-primary truncate">{user?.full_name ?? 'Admin'}</p>
-            <p className="text-xs text-text-muted">Администратор</p>
+            <p className="text-xs font-semibold text-white truncate">{user?.full_name ?? 'Admin'}</p>
+            <p className="text-[11px] text-white/50">Администратор</p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-red-50 hover:text-error transition-colors"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-white/40 hover:bg-red-500/10 hover:text-red-400 transition-colors text-left"
         >
           <LogOut className="h-4 w-4" />
-          Выйти
+          <span className="text-xs font-bold uppercase tracking-wide">Выйти</span>
         </button>
       </div>
     </>
@@ -127,7 +129,7 @@ export function AdminSidebar() {
       </header>
 
       {/* Десктопный сайдбар */}
-      <aside className="hidden md:flex fixed left-0 top-0 flex-col w-64 h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5 z-40">
+      <aside className="hidden md:flex fixed left-0 top-0 flex-col w-64 h-screen overflow-y-auto bg-navy px-3 py-6 z-40">
         {renderBody('admin-nav-indicator-desktop')}
       </aside>
 
@@ -147,12 +149,12 @@ export function AdminSidebar() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="md:hidden fixed left-0 top-0 z-50 flex flex-col w-72 max-w-[85vw] h-screen overflow-y-auto border-r border-slate-100 bg-white px-3 py-5"
+              className="md:hidden fixed left-0 top-0 z-50 flex flex-col w-72 max-w-[85vw] h-screen overflow-y-auto bg-navy px-3 py-6"
             >
               <button
                 onClick={() => setMobileOpen(false)}
                 aria-label="Закрыть меню"
-                className="absolute right-3 top-4 rounded-lg p-1.5 text-text-muted hover:bg-slate-100 transition-colors"
+                className="absolute right-3 top-4 rounded-lg p-1.5 text-white/60 hover:bg-white/10 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>

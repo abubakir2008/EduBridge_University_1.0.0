@@ -35,6 +35,13 @@ export interface User {
   contact_person_phone?: string
   contract_file_id?: string
   language_skills?: LanguageSkill[]
+  program_level?: string
+  preferred_difficulty?: string
+  wants_language_year?: string
+  max_budget_rmb?: number
+  toefl_score?: number
+  hsk_level?: number
+  is_onboarded?: boolean
   role: UserRole
   account_status: AccountStatus
   created_at: string
@@ -58,7 +65,7 @@ export interface University {
   province?: string
   description?: string
   specialties?: string[] | string
-  requirements?: string
+  requirements?: Record<string, number> | string | null
   min_requirements?: string
   tuition_fee?: number
   ranking?: number
@@ -90,6 +97,45 @@ export interface University {
 
   difficulty?: string
   deadline?: string
+
+  // Поля персонального подбора (приходят из GET /universities/match)
+  match_score?: number
+  match_tier?: 'gold' | 'silver' | 'bronze'
+  match_reasons?: string[]
+  match_gaps?: string[]
+}
+
+export type MatchTier = 'gold' | 'silver' | 'bronze'
+
+// ── Блог / статьи ──────────────────────────────────────────────
+export type PostCategory = 'relocation' | 'admission' | 'languages' | 'grants'
+export type PostStatus = 'draft' | 'published'
+
+export interface PostListItem {
+  id: string
+  title: string
+  slug: string
+  category: string          // slug рубрики (рубрики динамические, управляются в админке)
+  excerpt?: string | null
+  cover_file_id?: string | null
+  status: PostStatus
+  published_at?: string | null
+  created_at?: string | null
+}
+
+export interface Post extends PostListItem {
+  content?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+}
+
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  description?: string | null
+  icon?: string | null      // ключ lucide-иконки
+  sort_order: number
 }
 
 export interface Stage {
@@ -143,6 +189,7 @@ export interface Lesson {
   content?: string
   file_id?: string
   order: number
+  viewed?: boolean
 }
 
 export interface Case {

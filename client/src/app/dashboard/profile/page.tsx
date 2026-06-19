@@ -139,7 +139,7 @@ export default function ProfilePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text-primary">Профиль</h1>
         {!editing ? (
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button data-tour="tour-edit" variant="outline" size="sm" onClick={() => setEditing(true)}>
             <Pencil className="h-4 w-4" /> Редактировать
           </Button>
         ) : (
@@ -167,8 +167,12 @@ export default function ProfilePage() {
           <div className="border-t pt-4">
             <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Академические показатели</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="GPA (0–5)" type="number" step="0.01" disabled={!editing} {...register('gpa')} />
-              <Input label="IELTS (0–9)" type="number" step="0.5" disabled={!editing} {...register('ielts_score')} />
+              <div data-tour="tour-gpa">
+                <Input label="GPA (0–5)" type="number" step="0.01" disabled={!editing} {...register('gpa')} />
+              </div>
+              <div data-tour="tour-tests">
+                <Input label="IELTS (0–9)" type="number" step="0.5" disabled={!editing} {...register('ielts_score')} />
+              </div>
               <Input label="TOEFL (0–120)" type="number" disabled={!editing} {...register('toefl_score')} />
               <Input label="SAT (0–1600)" type="number" disabled={!editing} {...register('sat_score')} />
             </div>
@@ -270,7 +274,7 @@ export default function ProfilePage() {
           </div>
 
           {editing && (
-            <Button type="submit" loading={mutation.isPending} className="w-full">
+            <Button data-tour="tour-save" type="submit" loading={mutation.isPending} className="w-full">
               <Save className="h-4 w-4" /> Сохранить изменения
             </Button>
           )}

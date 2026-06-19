@@ -17,6 +17,8 @@ from app.models.lead_history import LeadHistory
 from app.models.reminder import Reminder
 from app.models.activity_log import ActivityLog
 from app.models.student_stage_deadline import StudentStageDeadline
+from app.models.post import Post, PostCategory, PostStatus
+from app.models.post_category import Category
 
 __all__ = [
     "User", "UserRole", "AccountStatus",
@@ -38,4 +40,6 @@ __all__ = [
     "Reminder",
     "ActivityLog",
     "StudentStageDeadline",
+    "Post", "PostCategory", "PostStatus",
+    "Category",
 ]

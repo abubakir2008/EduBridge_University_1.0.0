@@ -60,8 +60,23 @@ def _build_progress_response(db: Session, progress) -> StudentProgressResponse:
         if ds:
             deadline_status = DeadlineStatus(**ds)
 
-        # Lessons
-        lessons = [LessonBasic.model_validate(l) for l in sorted(stage.lessons, key=lambda x: x.order)]
+        # Lessons (+ отметка просмотра студентом)
+        from app.models.lesson_view import LessonView
+        sorted_lessons = sorted(stage.lessons, key=lambda x: x.order)
+        viewed_ids = {
+            row[0] for row in db.query(LessonView.lesson_id).filter(
+                LessonView.user_id == progress.user_id,
+                LessonView.lesson_id.in_([l.id for l in sorted_lessons]) if sorted_lessons else False,
+            ).all()
+        } if sorted_lessons else set()
+        lessons = [
+            LessonBasic(
+                id=l.id, title=l.title, content_type=l.content_type,
+                content=l.content, file_id=l.file_id, order=l.order,
+                viewed=l.id in viewed_ids,
+            )
+            for l in sorted_lessons
+        ]
 
         # Student requirements for current stage (only current stage's reqs)
         stage_req_ids = {r.id for r in stage.requirements}

@@ -19,12 +19,13 @@ const paddingMap = {
 export function Card({ children, className, padding = 'md', glowOnHover = true }: CardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      whileHover={glowOnHover ? { y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' } : undefined}
+      transition={{ duration: 0.3 }}
+      whileHover={glowOnHover ? { y: -4, transition: { duration: 0.2 } } : undefined}
       className={cn(
-        'rounded-card border border-slate-200 bg-white shadow-card transition-shadow',
+        'rounded-card border border-slate-100 bg-white shadow-card overflow-hidden transition-shadow',
+        glowOnHover && 'hover:shadow-card-hover',
         paddingMap[padding],
         className
       )}

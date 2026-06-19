@@ -53,6 +53,7 @@ class UserUpdate(BaseModel):
     wants_language_year: Optional[str] = None
     preferred_difficulty: Optional[str] = None
     program_level: Optional[str] = None
+    is_onboarded: Optional[bool] = None
 
 
 class UserStatusUpdate(BaseModel):
@@ -87,6 +88,7 @@ class UserResponse(BaseModel):
     wants_language_year: Optional[str]
     preferred_difficulty: Optional[str]
     program_level: Optional[str]
+    is_onboarded: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

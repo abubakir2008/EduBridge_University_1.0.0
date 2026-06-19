@@ -116,6 +116,14 @@ class UniversityResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MatchedUniversityResponse(UniversityResponse):
+    """Университет в персональном подборе: + очки совпадения, тир и причины."""
+    match_score: int = 0
+    match_tier: str = "bronze"          # 'gold' | 'silver' | 'bronze'
+    match_reasons: List[str] = []       # что совпало
+    match_gaps: List[str] = []          # чего не хватает
+
+
 class UniversityMatchFilters(BaseModel):
     gpa: Optional[float] = None
     test_scores: Optional[Any] = None

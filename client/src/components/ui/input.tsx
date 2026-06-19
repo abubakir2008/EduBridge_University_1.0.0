@@ -17,13 +17,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
     return (
-      <div className="flex flex-col gap-1.5 w-full">
+      <div className="flex flex-col gap-2 w-full">
         {label && (
-          <label className="text-sm font-medium text-text-primary">{label}</label>
+          <label className="text-sm font-medium text-text-secondary">{label}</label>
         )}
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
               {icon}
             </div>
           )}
@@ -32,11 +32,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             type={inputType}
             aria-invalid={!!error}
             className={cn(
-              'h-10 w-full rounded-input border border-slate-200 bg-white px-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-150',
+              'w-full rounded-input border border-slate-200 bg-white px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-200',
               'focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20',
-              icon && 'pl-9',
-              isPassword && 'pr-10',
-              error && 'border-error focus:border-error focus:ring-error/20',
+              icon && 'pl-12',
+              isPassword && 'pr-11',
+              error && 'border-red-400 focus:border-red-400 focus:ring-red-100',
               className
             )}
             {...props}

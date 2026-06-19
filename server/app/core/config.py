@@ -47,6 +47,26 @@ class Settings(BaseSettings):
     # Groq AI
     GROQ_API_KEY: str = ""
 
+    # ElevenLabs TTS (голос Барашка). Если ключ пуст — фронт откатывается на браузерный голос.
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "cgSgspJ2msm6clMCkdW9"          # женский — Jessica (Playful, Warm)
+    ELEVENLABS_VOICE_ID_MALE: str = "pNInz6obpgDQGcFmaJgB"     # мужской — Adam
+    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
+
+    # Edge TTS (Microsoft) — бесплатная озвучка, русские нейроголоса, без ключа. Основной провайдер.
+    EDGE_TTS_ENABLED: bool = True
+    EDGE_TTS_VOICE: str = "ru-RU-SvetlanaNeural"        # женский
+    EDGE_TTS_VOICE_MALE: str = "ru-RU-DmitryNeural"     # мужской
+
+    # OpenAI TTS (если задан ключ). Голоса: nova/shimmer (жен), onyx/echo (муж).
+    OPENAI_API_KEY: str = ""
+    OPENAI_TTS_MODEL: str = "tts-1"
+    OPENAI_TTS_VOICE: str = "nova"
+    OPENAI_TTS_VOICE_MALE: str = "onyx"
+
+    # Groq Whisper (распознавание речи — работает во всех браузерах)
+    GROQ_STT_MODEL: str = "whisper-large-v3-turbo"
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 

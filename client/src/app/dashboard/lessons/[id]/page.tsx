@@ -1,14 +1,16 @@
 'use client'
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, FileText, Video, BookOpen, Play, Eye, X, Clock, AlertCircle, ImageIcon,
+  ArrowLeft, FileText, Video, BookOpen, Play, Eye, X, Clock, AlertCircle, ImageIcon, CheckCircle2,
 } from 'lucide-react'
 import { apiGetLesson } from '@/lib/api/lessons'
+import { apiMarkLessonViewed } from '@/lib/api/training'
 import { getFileContentUrl } from '@/lib/api/files'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useBarashekStore } from '@/lib/store/barashekStore'
 
 const pageVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -48,11 +50,43 @@ function renderContent(content: string) {
 export default function LessonPage({ params }: { params: { id: string } }) {
   const { id } = params
   const [showDocModal, setShowDocModal] = useState(false)
+  const [viewed, setViewed] = useState(false)
+  const say = useBarashekStore((s) => s.say)
+  const qc = useQueryClient()
+  const markedRef = useRef(false)
 
   const { data: lesson, isLoading } = useQuery({
     queryKey: ['lesson', id],
     queryFn: () => apiGetLesson(id),
   })
+
+  const markViewed = async () => {
+    if (markedRef.current) return
+    markedRef.current = true
+    setViewed(true)
+    try {
+      await apiMarkLessonViewed(id)
+      qc.invalidateQueries({ queryKey: ['training'] })
+      say({
+        variant: 'info',
+        mood: 'happy',
+        title: 'Урок засчитан! ✅',
+        text: 'Умничка, что посмотрел 🐑 Теперь можешь идти дальше по этапу. Горжусь тобой!',
+      })
+    } catch {
+      markedRef.current = false
+      setViewed(false)
+    }
+  }
+
+  // Для текста/документа/картинки засчитываем просмотр автоматически через 4 сек.
+  // Для видео — по окончании (onEnded).
+  useEffect(() => {
+    if (!lesson || lesson.content_type === 'video') return
+    const t = setTimeout(() => { void markViewed() }, 4000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id])
 
   const fileUrl =
     lesson?.file_id && lesson?.content_type !== 'video'
@@ -133,6 +167,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
                 controlsList="nodownload noremoteplayback"
                 disablePictureInPicture
                 preload="metadata"
+                onEnded={() => void markViewed()}
                 onContextMenu={e => e.preventDefault()}
               />
             </div>
@@ -282,6 +317,27 @@ export default function LessonPage({ params }: { params: { id: string } }) {
           <p className="text-text-muted">Контент урока ещё не добавлен</p>
         </div>
       )}
+
+      {/* Подтверждение просмотра урока */}
+      <div className="flex items-center justify-between gap-3 rounded-card border border-slate-100 bg-white p-4 shadow-card">
+        {viewed ? (
+          <p className="flex items-center gap-2 text-sm font-medium text-success">
+            <CheckCircle2 className="h-5 w-5" /> Урок просмотрен — отличная работа! 🐑
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-text-secondary">
+              {lesson.content_type === 'video' ? 'Досмотри видео до конца' : 'Изучи материал'}, чтобы продолжить путь.
+            </p>
+            <button
+              onClick={() => void markViewed()}
+              className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              Я посмотрел ✓
+            </button>
+          </>
+        )}
+      </div>
     </motion.div>
   )
 }

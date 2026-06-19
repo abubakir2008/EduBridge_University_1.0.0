@@ -57,9 +57,57 @@ export interface ReminderDraft {
   user_name: string
 }
 
+export interface OnboardingOption { label: string; value: string }
+export interface OnboardingResult {
+  reply: string
+  profile_updates: Record<string, unknown>
+  completed: boolean
+  is_onboarded: boolean
+  field: string
+  field_type: 'text' | 'number' | 'date' | 'choice'
+  options: OnboardingOption[]
+  skippable: boolean
+  progress: { filled: number; total: number }
+}
+
 // Student
+export const apiAiOnboardingChat = (message: string, history: ChatMessage[], skipped: string[] = []) =>
+  client.post<OnboardingResult>('/ai/onboarding/chat', { message, history, skipped }).then(r => r.data)
+
 export const apiAiChat = (message: string, history: ChatMessage[]) =>
   client.post<{ reply: string }>('/ai/chat', { message, history }).then(r => r.data)
+
+export const apiBarashekTip = () =>
+  client.get<{ tip: string }>('/ai/barashek/tip').then(r => r.data)
+
+export interface NextAction {
+  text: string
+  action_label: string
+  action_href: string
+  mood: string
+  emoji: string
+}
+export const apiBarashekNextAction = () =>
+  client.get<NextAction>('/ai/barashek/next-action').then(r => r.data)
+
+export const apiBarashekTTS = (text: string, gender: 'female' | 'male' = 'female') =>
+  client.post('/ai/tts', { text, gender }, { responseType: 'blob' }).then(r => r.data as Blob)
+
+export const apiBarashekInterview = (message: string, history: ChatMessage[]) =>
+  client.post<{ reply: string }>('/ai/interview', { message, history }).then(r => r.data)
+
+export const apiBarashekGuide = (params: {
+  message?: string
+  history: ChatMessage[]
+  page?: string
+  auto?: boolean
+}) =>
+  client.post<{ reply: string }>('/ai/barashek', {
+    message: params.message ?? '',
+    history: params.history,
+    page: params.page ?? '',
+    auto: params.auto ?? false,
+  }).then(r => r.data)
 
 export const apiAiCheckLetter = (text: string, translate_to = '') =>
   client.post<LetterCheckResult>('/ai/check-letter', { text, translate_to }).then(r => r.data)

@@ -5,7 +5,7 @@ export const apiGetFavourites = () =>
   client.get<University[]>('/favourites').then((r) => r.data)
 
 export const apiAddFavourite = (universityId: string) =>
-  client.post('/favourites', { university_id: universityId }).then((r) => r.data)
+  client.post(`/favourites/${universityId}`).then((r) => r.data)
 
 export const apiRemoveFavourite = (universityId: string) =>
   client.delete(`/favourites/${universityId}`)

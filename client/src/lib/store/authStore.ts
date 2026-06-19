@@ -10,6 +10,7 @@ interface AuthState {
   login: (login: string, password: string) => Promise<void>
   logout: () => Promise<void>
   fetchMe: () => Promise<void>
+  patchUser: (partial: Partial<User>) => void
   clear: () => void
 }
 
@@ -46,6 +47,10 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ isLoading: false })
         }
+      },
+
+      patchUser(partial) {
+        set((s) => (s.user ? { user: { ...s.user, ...partial } } : {}))
       },
 
       clear() {

@@ -17,8 +17,10 @@ from app.models.requirement import Requirement
 from app.models.university import University
 from app.models.user import User, AccountStatus
 
+# Основная модель — точная 70b; при исчерпании её дневного лимита (429) авто-фолбэк на 8b.
 TEXT_MODEL = "llama-3.3-70b-versatile"
-VISION_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct-fp8"
+FALLBACK_MODEL = "llama-3.1-8b-instant"
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"  # актуальная мультимодальная модель Groq
 
 
 def _gpa_percent(gpa: Optional[float]) -> int:
@@ -38,7 +40,13 @@ def _gpa_percent(gpa: Optional[float]) -> int:
     return min(100, int(gpa / scale * 100))
 
 
+import logging
+import time
+
+logger = logging.getLogger("ai_service")
+
 GROQ_TIMEOUT = 30  # seconds — avoid a slow upstream tying up a worker thread
+GROQ_RETRIES = 3   # повтор при временных сбоях Groq (rate limit / таймаут / 5xx)
 
 
 def _client() -> Groq:
@@ -48,13 +56,36 @@ def _client() -> Groq:
 
 
 def _complete(messages: list, model: str = TEXT_MODEL, max_tokens: int = 2048) -> str:
-    resp = _client().chat.completions.create(
-        model=model,
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=0.7,
-    )
-    return resp.choices[0].message.content.strip()
+    """Вызов Groq с ретраями и авто-фолбэком модели при исчерпании лимита (429)."""
+    # Цепочка моделей: основная → запасная (для текста). Vision — без фолбэка.
+    if model == VISION_MODEL:
+        chain = [model]
+    else:
+        chain = [model] + ([FALLBACK_MODEL] if FALLBACK_MODEL != model else [])
+
+    last_err: Exception | None = None
+    for m in chain:
+        for attempt in range(GROQ_RETRIES):
+            try:
+                resp = _client().chat.completions.create(
+                    model=m,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.7,
+                )
+                return resp.choices[0].message.content.strip()
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+                status = getattr(e, "status_code", None)
+                logger.warning("Groq %s failed (attempt %s/%s, status=%s): %s",
+                               m, attempt + 1, GROQ_RETRIES, status, e)
+                if status == 429:
+                    break  # дневной/минутный лимит модели — сразу к запасной модели
+                if attempt < GROQ_RETRIES - 1 and (status in (408, 500, 502, 503, 504) or status is None):
+                    time.sleep(0.8 * (attempt + 1))
+                    continue
+                break
+    raise last_err if last_err else RuntimeError("Groq call failed")
 
 
 def _extract_json(text: str, opener: str, closer: str) -> str:
@@ -158,6 +189,299 @@ def _build_student_context(db: Session, user: User) -> str:
     return "\n".join(lines)
 
 
+# ── Барашек: постоянный гид-ассистент по системе ──────────────────────────────
+
+# Описание каждой страницы кабинета: что это, какие кнопки и что делать.
+# Барашек использует это, чтобы подсказывать «куда нажимать».
+BARASHEK_PAGES = {
+    "training": (
+        "Страница «Мой путь» (/dashboard/training) — здесь видны этапы поступления по "
+        "выбранному университету. На каждом этапе есть чеклист требований (галочки), "
+        "загрузка документов и видео-уроки. Кнопки: отметить требование выполненным, "
+        "загрузить файл, посмотреть урок, перейти к следующему этапу."
+    ),
+    "universities": (
+        "Страница «Университеты» (/dashboard/universities) — каталог вузов. "
+        "Вверху справа кнопки: «Подобрать по моим данным» (AI-подбор под профиль) и "
+        "«Сравнить». На карточке вуза: кнопка «Подробнее», иконка-сердечко добавляет в "
+        "Избранное. Есть поиск и фильтр по стране."
+    ),
+    "favourites": (
+        "Страница «Избранное» (/dashboard/favourites) — сохранённые вузы. Отсюда можно "
+        "открыть вуз и начать по нему путь поступления."
+    ),
+    "notifications": (
+        "Страница «Уведомления» (/dashboard/notifications) — напоминания о дедлайнах и "
+        "новых этапах. Клик по уведомлению отмечает его прочитанным."
+    ),
+    "profile": (
+        "Страница «Профиль» (/dashboard/profile) — личные данные, GPA, баллы тестов "
+        "(IELTS/TOEFL/SAT/HSK), желаемая специальность и бюджет. Здесь всё можно "
+        "отредактировать и сохранить. Полный профиль нужен для точного AI-подбора."
+    ),
+    "university_detail": (
+        "Страница конкретного университета — подробная информация, стоимость, "
+        "специальности, требования. Здесь можно добавить вуз в избранное и начать "
+        "по нему путь поступления."
+    ),
+}
+
+
+def barashek_guide(db: Session, user: User, message: str, history: list,
+                   page: str = "", auto: bool = False) -> str:
+    """Постоянный гид-ассистент «Барашек».
+
+    Тепло ведёт студента по системе: подсказывает куда нажимать и что делать,
+    отвечает форматированным markdown, хвалит через раз. Если auto=True —
+    проактивно объясняет текущую страницу без вопроса студента.
+    """
+    context = _build_student_context(db, user)
+    page_info = BARASHEK_PAGES.get(page, "")
+
+    # «Хвалит через 1 раз»: считаем уже сказанные ответы Барашка.
+    assistant_count = sum(1 for h in history if h.get("role") == "assistant")
+    should_praise = (assistant_count % 2 == 0)
+
+    system = (
+        "Ты — Барашек 🐑, тёплый, заботливый AI-проводник студента в личном кабинете "
+        "платформы EduBridge University (поступление в зарубежные вузы).\n\n"
+        "ТВОЯ РОЛЬ:\n"
+        "- Ты постоянный помощник: ведёшь студента за руку по системе, "
+        "конкретно подсказываешь КУДА НАЖИМАТЬ и ЧТО ДЕЛАТЬ прямо сейчас.\n"
+        "- Ссылайся на реальные кнопки и разделы по их названиям (например: "
+        "«нажми кнопку **Подобрать по моим данным** вверху справа»).\n"
+        "- Тон тёплый, ласковый, с эмодзи 🐑✨💚, обращайся по имени.\n"
+        "- Отвечай ТОЛЬКО на русском.\n"
+        "- ВСЕГДА форматируй ответ в markdown: **жирным** выделяй кнопки и важное, "
+        "используй короткие списки шагов (1. 2. 3. или •). Будь краток — 2-5 пунктов.\n"
+        + (
+            "- ВАЖНО: в этом ответе ОБЯЗАТЕЛЬНО искренне похвали и подбодри студента "
+            "(«умничка», «ты молодец», «горжусь тобой») в начале.\n"
+            if should_praise else
+            "- В этом ответе НЕ хвали — сразу по делу, по-доброму.\n"
+        )
+        + f"\nИмя студента: {user.full_name}\n"
+        f"\nПрофиль и прогресс студента:\n{context}\n"
+        + (f"\nСтудент сейчас на странице:\n{page_info}\n" if page_info else "")
+    )
+
+    if auto:
+        user_msg = (
+            "Студент только что открыл эту страницу. Кратко и тепло поприветствуй его "
+            "здесь, объясни что это за раздел и подскажи 1-3 конкретных шага, что делать "
+            "дальше. Укажи на нужные кнопки."
+        )
+    else:
+        user_msg = message
+
+    messages = [{"role": "system", "content": system}]
+    for h in history[-10:]:
+        if h.get("role") in ("user", "assistant"):
+            messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": user_msg})
+    return _complete(messages)
+
+
+def _edge_tts(text: str, gender: str) -> bytes:
+    """Бесплатная озвучка через Microsoft Edge TTS (русские нейроголоса, без ключа)."""
+    import asyncio
+    import edge_tts
+    voice = settings.EDGE_TTS_VOICE_MALE if gender == "male" else settings.EDGE_TTS_VOICE
+
+    async def _gen() -> bytes:
+        buf = bytearray()
+        communicate = edge_tts.Communicate(text, voice)
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buf += chunk["data"]
+        return bytes(buf)
+
+    audio = asyncio.run(_gen())
+    if not audio:
+        raise RuntimeError("Edge TTS вернул пустой ответ")
+    return audio
+
+
+def _openai_tts(text: str, gender: str) -> bytes:
+    import httpx
+    voice = settings.OPENAI_TTS_VOICE_MALE if gender == "male" else settings.OPENAI_TTS_VOICE
+    resp = httpx.post(
+        "https://api.openai.com/v1/audio/speech",
+        headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+        json={"model": settings.OPENAI_TTS_MODEL, "voice": voice, "input": text, "response_format": "mp3"},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"OpenAI TTS error {resp.status_code}: {resp.text[:200]}")
+    return resp.content
+
+
+def text_to_speech(text: str, gender: str = "female") -> bytes:
+    """Озвучка текста голосом Барашка. Приоритет: OpenAI TTS → ElevenLabs.
+
+    Если ни один ключ не задан/сервис недоступен — бросает исключение,
+    чтобы фронт откатился на браузерный голос."""
+    import re as _re
+    # лёгкая чистка (эмодзи/markdown/разделители тысяч) и для OpenAI, и для ElevenLabs
+    clean = _re.sub(r"[\U0001F000-\U0001FAFF☀-➿️‍]", "", text)
+    clean = _re.sub(r"[*_`#>$₽¥€]", "", clean)
+    clean = _re.sub(r"(?<=\d)[\s ,](?=\d)", "", clean)
+    clean = _re.sub(r"\s+", " ", clean).strip()[:800]
+    if not clean:
+        raise ValueError("Пустой текст")
+
+    # 1) Edge TTS — бесплатно, русский Svetlana (основной)
+    if settings.EDGE_TTS_ENABLED:
+        try:
+            return _edge_tts(clean, gender)
+        except Exception as e:  # noqa: BLE001 — при сбое падаем на следующий провайдер
+            logger.warning("Edge TTS failed: %s", e)
+
+    # 2) OpenAI TTS (если задан ключ)
+    if settings.OPENAI_API_KEY:
+        return _openai_tts(clean, gender)
+
+    # 3) ElevenLabs
+    if not settings.ELEVENLABS_API_KEY:
+        raise ValueError("Нет доступного TTS-провайдера")
+    voice_id = settings.ELEVENLABS_VOICE_ID_MALE if gender == "male" else settings.ELEVENLABS_VOICE_ID
+    text = clean
+
+    import re
+    import httpx
+
+    # Чистим: эмодзи, markdown, валюта; убираем разделители тысяч ("25 000" → "25000")
+    t = re.sub(r"[\U0001F000-\U0001FAFF☀-➿️‍]", "", text)
+    t = re.sub(r"[*_`#>$₽¥€]", "", t)
+    t = re.sub(r"(?<=\d)[\s ,](?=\d)", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    if not t:
+        raise ValueError("Пустой текст")
+    t = t[:800]
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    resp = httpx.post(
+        url,
+        headers={"xi-api-key": settings.ELEVENLABS_API_KEY, "accept": "audio/mpeg"},
+        json={
+            "text": t,
+            "model_id": settings.ELEVENLABS_MODEL,
+            "voice_settings": {"stability": 0.4, "similarity_boost": 0.85, "style": 0.35, "use_speaker_boost": True},
+        },
+        params={"output_format": "mp3_44100_128"},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"ElevenLabs error {resp.status_code}: {resp.text[:200]}")
+    return resp.content
+
+
+def interview_coach(db: Session, user: User, message: str, history: list) -> str:
+    """Барашек проводит мок-интервью для поступления: вопрос → фидбэк → следующий вопрос."""
+    context = _build_student_context(db, user)
+    system = (
+        "Ты — Барашек 🐑, добрый тренер по собеседованиям для поступления в зарубежные вузы. "
+        "Проводишь дружелюбное мок-интервью.\n"
+        "ПРАВИЛА:\n"
+        "- Задавай по ОДНОМУ вопросу за раз (мотивация, цели, почему этот вуз и специальность, "
+        "сильные стороны, планы на будущее, преодоление трудностей).\n"
+        "- Если история пустая — тепло поприветствуй и задай ПЕРВЫЙ вопрос.\n"
+        "- После ответа студента: 1-2 предложения тёплого фидбэка (что хорошо + что улучшить), "
+        "затем следующий вопрос.\n"
+        "- Сам вопрос выделяй **жирным**. Коротко, по-русски, поддерживающе, без занудства.\n"
+        f"\nПрофиль студента:\n{context}"
+    )
+    messages = [{"role": "system", "content": system}]
+    for h in history[-10:]:
+        if h.get("role") in ("user", "assistant"):
+            messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": message or "Начнём интервью."})
+    return _complete(messages)
+
+
+def barashek_next_action(db: Session, user: User) -> dict:
+    """Одно конкретное следующее действие для студента (детерминированно, без Groq).
+
+    Возвращает {text, action_label, action_href, mood, emoji}."""
+    from app.models.lesson import Lesson
+    from app.models.lesson_view import LessonView
+
+    def res(text, label, href, mood="talking", emoji="🎯"):
+        return {"text": text, "action_label": label, "action_href": href, "mood": mood, "emoji": emoji}
+
+    # 1. Профиль (нужен GPA для подбора)
+    if not user.gpa:
+        return res("Сначала заполни профиль — укажи GPA и баллы тестов. Без этого я не подберу вузы точно.",
+                   "Открыть профиль", "/dashboard/profile", "talking", "📝")
+
+    # 2. Выбран ли университет
+    progress = db.query(StudentProgress).filter(
+        StudentProgress.user_id == user.id,
+        StudentProgress.status == ProgressStatus.in_progress,
+    ).first()
+    if not progress:
+        return res("Давай выберем университет — с него начнётся твой путь! Жми «Подобрать по моим данным».",
+                   "К университетам", "/dashboard/universities", "talking", "🏛️")
+
+    stage = db.get(Stage, progress.current_stage_id) if progress.current_stage_id else None
+    if not stage:
+        return res("Ты прошёл все этапы — поздравляю! Горжусь тобой!",
+                   "Мой путь", "/dashboard/training", "happy", "🎓")
+
+    # 3. Непросмотренные уроки этапа
+    lessons = db.query(Lesson).filter(Lesson.stage_id == stage.id).order_by(Lesson.order).all()
+    if lessons:
+        viewed = {row[0] for row in db.query(LessonView.lesson_id).filter(
+            LessonView.user_id == user.id,
+            LessonView.lesson_id.in_([l.id for l in lessons]),
+        ).all()}
+        unseen = [l for l in lessons if l.id not in viewed]
+        if unseen:
+            return res(f"Посмотри урок «{unseen[0].title}» — это откроет следующий шаг этапа «{stage.name}».",
+                       "Открыть урок", f"/dashboard/lessons/{unseen[0].id}", "talking", "🎬")
+
+    # 4. Невыполненные обязательные требования
+    reqs = db.query(Requirement).filter(Requirement.stage_id == stage.id).all()
+    done = {row[0] for row in db.query(StudentRequirement.requirement_id).filter(
+        StudentRequirement.student_progress_id == progress.id,
+        StudentRequirement.completed == True,  # noqa: E712
+    ).all()}
+    pending = [r for r in reqs if r.id not in done and r.required]
+
+    # дедлайн этапа
+    ssd = db.query(StudentStageDeadline).filter(
+        StudentStageDeadline.student_progress_id == progress.id,
+        StudentStageDeadline.stage_id == stage.id,
+    ).first()
+    overdue = bool(ssd and (ssd.deadline - date.today()).days < 0)
+
+    if pending:
+        mood = "sad" if overdue else "talking"
+        urg = "⚠️ Срок уже истёк! " if overdue else ""
+        return res(f"{urg}Выполни требование «{pending[0].name}» на этапе «{stage.name}».",
+                   "К моему пути", "/dashboard/training", mood, "✅")
+
+    # 5. Всё выполнено — переходи дальше
+    return res(f"На этапе «{stage.name}» всё готово — переходи на следующий этап! Ты молодец!",
+               "К моему пути", "/dashboard/training", "happy", "🚀")
+
+
+def barashek_personal_tip(db: Session, user: User) -> str:
+    """Короткая тёплая персональная подсказка от Барашка по профилю студента."""
+    context = _build_student_context(db, user)
+    system = (
+        "Ты — Барашек 🐑, тёплый AI-помощник EduBridge. По данным студента дай ОДНУ "
+        "короткую (1-2 предложения) персональную, ободряющую подсказку: что ему сделать "
+        "следующим шагом, с конкретикой по его профилю. Тепло, по имени, с эмодзи, по-русски. "
+        "Только текст подсказки, без префиксов."
+    )
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": f"Профиль студента:\n{context}"},
+    ]
+    return _complete(messages, max_tokens=200)
+
+
 # ── Feature 1: Student chat ───────────────────────────────────────────────────
 
 def student_chat(db: Session, user: User, message: str, history: list) -> str:
@@ -174,6 +498,255 @@ def student_chat(db: Session, user: User, message: str, history: list) -> str:
             messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": message})
     return _complete(messages)
+
+
+# ── Onboarding: персонаж «Барашек» ───────────────────────────────────────────
+
+# Поля, которые Барашек собирает в диалоге. Значение — человекочитаемое описание
+# для модели + способ, которым его нужно вернуть в profile_updates.
+ONBOARDING_FIELDS = {
+    "date_of_birth": "дата рождения (формат YYYY-MM-DD)",
+    "citizenship": "гражданство / страна (строка)",
+    "gpa": "средний балл аттестата (число, например 4.5 или 85)",
+    "desired_specialty": "желаемая специальность / направление обучения (строка)",
+    "program_level": "уровень программы: одно из bachelor / master / language",
+    "country_preference": "предпочитаемые страны обучения (массив строк)",
+    "ielts_score": "балл IELTS (число 0-9) либо null если не сдавал",
+    "toefl_score": "балл TOEFL (целое 0-120) либо null если не сдавал",
+    "sat_score": "балл SAT (целое 0-1600) либо null если не сдавал",
+    "hsk_level": "уровень HSK по китайскому (целое 1-6) либо null если не сдавал",
+    "max_budget_rmb": "максимальный бюджет на обучение в RMB/год (целое) либо null",
+    "wants_language_year": "нужен ли языковой год: одно из yes / no / maybe",
+    "preferred_difficulty": "желаемая сложность поступления: одно из Легко / Средний / Сложно",
+    "achievements": "достижения, награды, опыт (строка) либо null",
+}
+
+# Какие поля обязательны, чтобы считать онбординг завершённым.
+ONBOARDING_REQUIRED = [
+    "citizenship", "gpa", "desired_specialty", "program_level",
+    "country_preference", "max_budget_rmb",
+]
+
+# Порядок, в котором Барашек задаёт вопросы.
+ONBOARDING_ASK_ORDER = [
+    "date_of_birth", "citizenship", "gpa", "desired_specialty",
+    "program_level", "country_preference", "max_budget_rmb",
+    "ielts_score", "preferred_difficulty",
+]
+
+# Тип поля для интерфейса: text | number | date | choice
+ONBOARDING_FIELD_TYPES = {
+    "date_of_birth": "date", "citizenship": "text", "gpa": "number",
+    "desired_specialty": "text", "program_level": "choice",
+    "country_preference": "choice", "max_budget_rmb": "number",
+    "ielts_score": "number", "toefl_score": "number", "sat_score": "number",
+    "hsk_level": "choice", "wants_language_year": "choice",
+    "preferred_difficulty": "choice", "achievements": "text",
+}
+
+# Поля, которые можно пропустить кнопкой «Не сдавал/Пропустить».
+ONBOARDING_SKIPPABLE = {"ielts_score", "toefl_score", "sat_score", "hsk_level", "achievements", "date_of_birth"}
+
+# Шаблонные вопросы — подставляются, если модель забыла задать вопрос.
+ONBOARDING_QUESTIONS = {
+    "date_of_birth": "Какая у тебя дата рождения? (ГГГГ-ММ-ДД)",
+    "citizenship": "Из какой ты страны?",
+    "gpa": "Какой у тебя средний балл аттестата (GPA)?",
+    "desired_specialty": "Кем хочешь стать — какая специальность тебе интересна?",
+    "program_level": "Какой уровень обучения тебе нужен?",
+    "country_preference": "В какой стране хочешь учиться?",
+    "max_budget_rmb": "Какой у тебя бюджет на обучение в год (в RMB)?",
+    "ielts_score": "Какой у тебя балл IELTS? Если не сдавал — нажми «Пропустить».",
+    "toefl_score": "Какой у тебя балл TOEFL? Если не сдавал — пропусти.",
+    "sat_score": "Какой у тебя балл SAT? Если не сдавал — пропусти.",
+    "hsk_level": "Какой у тебя уровень HSK?",
+    "preferred_difficulty": "Какую сложность поступления предпочитаешь?",
+}
+
+
+def onboarding_field_meta(db: Session, field: str) -> dict:
+    """Тип поля и варианты-кнопки для текущего вопроса онбординга."""
+    if not field or field not in ONBOARDING_FIELDS:
+        return {"field": "", "type": "text", "options": [], "skippable": False}
+    options: list = []
+    if field == "program_level":
+        options = [
+            {"label": "Бакалавриат", "value": "bachelor"},
+            {"label": "Магистратура", "value": "master"},
+            {"label": "Языковой год", "value": "language"},
+        ]
+    elif field == "wants_language_year":
+        options = [{"label": "Да", "value": "yes"}, {"label": "Нет", "value": "no"}, {"label": "Возможно", "value": "maybe"}]
+    elif field == "preferred_difficulty":
+        options = [{"label": "Легко", "value": "Легко"}, {"label": "Средний", "value": "Средний"}, {"label": "Сложно", "value": "Сложно"}]
+    elif field == "hsk_level":
+        options = [{"label": str(i), "value": str(i)} for i in range(1, 7)]
+    elif field == "country_preference":
+        options = [{"label": c, "value": c} for c in _system_countries(db)]
+    return {
+        "field": field,
+        "type": ONBOARDING_FIELD_TYPES.get(field, "text"),
+        "options": options,
+        "skippable": field in ONBOARDING_SKIPPABLE,
+    }
+
+
+def _filled_fields(user: User) -> dict:
+    """Текущие заполненные поля профиля, релевантные онбордингу."""
+    result = {}
+    for field in ONBOARDING_FIELDS:
+        val = getattr(user, field, None)
+        if val not in (None, "", []):
+            result[field] = val
+    return result
+
+
+# Частые русские названия стран → каноничные (как обычно в базе университетов).
+_RU_COUNTRY = {
+    "китай": "China", "кнр": "China",
+    "сша": "USA", "америка": "USA", "соединённые штаты": "USA",
+    "германия": "Germany", "италия": "Italy", "франция": "France",
+    "испания": "Spain", "великобритания": "UK", "англия": "UK",
+    "канада": "Canada", "южная корея": "South Korea", "корея": "South Korea",
+    "япония": "Japan", "турция": "Turkey", "россия": "Russia",
+    "казахстан": "Kazakhstan", "кыргызстан": "Kyrgyzstan", "киргизия": "Kyrgyzstan",
+}
+
+
+def _system_countries(db: Session) -> list[str]:
+    """Список стран, реально присутствующих в каталоге университетов."""
+    rows = db.query(University.country).filter(
+        University.deleted_at.is_(None), University.country.isnot(None)
+    ).distinct().all()
+    return [r[0] for r in rows if r[0]]
+
+
+def _normalize_countries(values: list, system_countries: list[str]) -> list:
+    """Приводим страны к написанию, которое есть в системе (чтобы совпадало
+    с выпадающим списком профиля и работал подбор). Рус→англ как запасной вариант."""
+    lookup = {c.lower(): c for c in system_countries}
+    result = []
+    for v in values:
+        low = str(v).strip().lower()
+        if low in lookup:
+            result.append(lookup[low])
+        elif low in _RU_COUNTRY:
+            mapped = _RU_COUNTRY[low]
+            result.append(lookup.get(mapped.lower(), mapped))
+        else:
+            result.append(str(v).strip())
+    # уникальные, без пустых, с сохранением порядка
+    seen = set()
+    return [x for x in result if x and not (x in seen or seen.add(x))]
+
+
+def onboarding_chat(db: Session, user: User, message: str, history: list, skipped: list | None = None) -> dict:
+    """Диалог-онбординг с персонажем «Барашек».
+
+    Барашек тепло встречает студента, благодарит и мягко, но настойчиво
+    вытягивает данные профиля прямо из разговора. Возвращает:
+      {"reply": str, "profile_updates": dict, "completed": bool}
+    """
+    is_start = not any(h.get("role") == "assistant" for h in history)
+    filled = _filled_fields(user)
+    filled_desc = ", ".join(f"{k}={v}" for k, v in filled.items()) or "пока ничего"
+    system_countries = _system_countries(db)
+    countries_hint = (
+        f"country_preference бери ТОЧНО из этих стран системы: {', '.join(system_countries)}.\n"
+        if system_countries else ""
+    )
+
+    # AI ТОЛЬКО извлекает данные из ответа студента и даёт одно слово похвалы.
+    # Сам вопрос и кнопки строит backend детерминированно — чтобы они всегда совпадали.
+    system = (
+        "Ты — Барашек, тёплый AI-талисман EduBridge. В этом ответе ты ТОЛЬКО извлекаешь "
+        "данные из последнего сообщения студента в profile_updates и даёшь ОДНО слово похвалы.\n"
+        "Форматы значений:\n"
+        "- gpa, ielts_score: число; toefl_score/sat_score/hsk_level/max_budget_rmb: целое\n"
+        "- date_of_birth: YYYY-MM-DD; citizenship/desired_specialty/achievements: строка\n"
+        "- program_level: bachelor|master|language; wants_language_year: yes|no|maybe\n"
+        "- preferred_difficulty: Легко|Средний|Сложно; country_preference: массив строк\n"
+        f"{countries_hint}"
+        "Если студент ничего конкретного не сообщил, ответил не по теме или «не сдавал/пропустить» — "
+        "profile_updates пустой объект {}.\n"
+        "praise — одно тёплое слово на русском («Супер!», «Отлично!», «Класс!», «Здорово!»).\n"
+        f"Уже известно о студенте: {filled_desc}\n\n"
+        'ФОРМАТ — строго JSON: {"profile_updates": {...}, "praise": "Отлично!"}'
+    )
+
+    messages = [{"role": "system", "content": system}]
+    for h in history[-8:]:
+        if h.get("role") in ("user", "assistant"):
+            messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": message})
+
+    parsed = _parse_json(_complete(messages), {"profile_updates": {}, "praise": "Отлично!"})
+
+    updates = parsed.get("profile_updates")
+    if not isinstance(updates, dict):
+        updates = {}
+    clean_updates = _sanitize_onboarding_updates(updates)
+    if "country_preference" in clean_updates:
+        clean_updates["country_preference"] = _normalize_countries(
+            clean_updates["country_preference"], system_countries
+        )
+
+    # Детерминированно вычисляем следующий вопрос (с учётом только что извлечённых полей
+    # и пропущенных пользователем). Поле и текст вопроса всегда совпадают → кнопки в
+    # интерфейсе соответствуют вопросу.
+    filled_after = set(filled) | set(clean_updates) | set(skipped or [])
+    next_field = next((f for f in ONBOARDING_ASK_ORDER if f not in filled_after), "")
+    completed = next_field == ""
+
+    praise = parsed.get("praise")
+    praise = praise.strip() if isinstance(praise, str) and praise.strip() else "Отлично!"
+
+    if completed:
+        reply = "Готово! Я узнал всё, что нужно. Теперь подберу тебе университеты — жми кнопку ниже."
+    else:
+        question = ONBOARDING_QUESTIONS.get(next_field, "Расскажи мне ещё немного о себе.")
+        reply = f"Здравствуй, {user.full_name}! **{question}**" if is_start else f"{praise} **{question}**"
+
+    return {
+        "reply": reply,
+        "profile_updates": clean_updates,
+        "next_field": next_field,
+        "completed": completed,
+    }
+
+
+def _sanitize_onboarding_updates(updates: dict) -> dict:
+    """Оставляем только известные поля и приводим значения к нужным типам."""
+    clean: dict = {}
+    for key, val in updates.items():
+        if key not in ONBOARDING_FIELDS or val in (None, "", []):
+            continue
+        try:
+            if key == "gpa":
+                clean[key] = float(val)
+            elif key == "ielts_score":
+                clean[key] = float(val)
+            elif key in ("toefl_score", "sat_score", "hsk_level", "max_budget_rmb"):
+                clean[key] = int(float(val))
+            elif key == "country_preference":
+                if isinstance(val, str):
+                    clean[key] = [val]
+                elif isinstance(val, list):
+                    clean[key] = [str(v) for v in val if v]
+            elif key == "program_level":
+                if str(val).lower() in ("bachelor", "master", "language"):
+                    clean[key] = str(val).lower()
+            elif key == "wants_language_year":
+                if str(val).lower() in ("yes", "no", "maybe"):
+                    clean[key] = str(val).lower()
+            elif key == "preferred_difficulty":
+                if str(val) in ("Легко", "Средний", "Сложно"):
+                    clean[key] = str(val)
+            else:  # citizenship, desired_specialty, achievements, date_of_birth
+                clean[key] = str(val)
+        except (ValueError, TypeError):
+            continue
+    return clean
 
 
 # ── Feature 2: Check motivation letter ───────────────────────────────────────
@@ -215,6 +788,60 @@ def check_document_image(image_bytes: bytes, mime_type: str) -> dict:
         "ok": False, "document_type": "Неизвестно", "issues": [raw[:200]],
         "empty_fields": [], "verdict": "Ошибка анализа", "recommendations": []
     })
+
+
+def _pdf_to_png(content: bytes) -> bytes:
+    """Рендер первой страницы PDF в PNG (для vision-проверки аттестатов/писем)."""
+    import fitz  # PyMuPDF
+    doc = fitz.open(stream=content, filetype="pdf")
+    try:
+        page = doc.load_page(0)
+        pix = page.get_pixmap(dpi=150)
+        return pix.tobytes("png")
+    finally:
+        doc.close()
+
+
+def _docx_to_text(content: bytes) -> str:
+    """Извлечь текст из .docx."""
+    import io
+    import docx
+    d = docx.Document(io.BytesIO(content))
+    return "\n".join(p.text for p in d.paragraphs if p.text)
+
+
+def check_document_text(text: str) -> dict:
+    """Проверка текстового документа (письмо/эссе/справка) — честно, но мягко."""
+    text = (text or "").strip()
+    if not text:
+        return {"ok": False, "document_type": "Документ", "issues": ["Не удалось прочитать текст"],
+                "empty_fields": [], "verdict": "Файл пустой или нечитаемый", "recommendations": ["Загрузи файл с текстом"]}
+    prompt = (
+        "Ты эксперт по поступлению в зарубежные вузы. Проверь документ студента "
+        "(мотивационное/рекомендательное письмо, эссе, справку) честно, но доброжелательно.\n"
+        "Ответь строго JSON (без markdown):\n"
+        '{"ok": true/false, "document_type": "тип", "issues": ["..."], '
+        '"empty_fields": ["..."], "verdict": "краткое заключение", "recommendations": ["..."]}\n\n'
+        f"Текст документа:\n{text[:6000]}"
+    )
+    raw = _complete([{"role": "user", "content": prompt}])
+    return _parse_json(raw, {
+        "ok": False, "document_type": "Документ", "issues": [raw[:200]],
+        "empty_fields": [], "verdict": "Не удалось проанализировать", "recommendations": []
+    })
+
+
+def check_document_file(content: bytes, mime: str = "", filename: str = "") -> dict:
+    """Проверка документа Барашком: фото (JPG/PNG/WEBP), PDF, DOCX, TXT."""
+    low_mime = (mime or "").lower()
+    low_name = (filename or "").lower()
+    if "pdf" in low_mime or low_name.endswith(".pdf"):
+        return check_document_image(_pdf_to_png(content), "image/png")
+    if "wordprocessingml" in low_mime or low_name.endswith(".docx"):
+        return check_document_text(_docx_to_text(content))
+    if low_mime.startswith("text/") or low_name.endswith(".txt"):
+        return check_document_text(content.decode("utf-8", errors="ignore"))
+    return check_document_image(content, mime or "image/jpeg")
 
 
 # ── Feature 4: Extract profile from document image ───────────────────────────

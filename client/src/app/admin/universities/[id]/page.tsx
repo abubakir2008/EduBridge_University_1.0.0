@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SpecialtiesInput } from '@/components/ui/SpecialtiesInput'
+import { RequirementsInput, type ReqValue } from '@/components/ui/RequirementsInput'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import type { Stage } from '@/types'
@@ -359,6 +360,7 @@ export default function AdminUniversityPage() {
   const [docsBach, setDocsBach] = useState<string[]>([])
   const [docsMast, setDocsMast] = useState<string[]>([])
   const [docsLang, setDocsLang] = useState<string[]>([])
+  const [reqs, setReqs] = useState<ReqValue>({})
 
   const { data: uni, isLoading } = useQuery({ queryKey: ['uni', id], queryFn: () => apiGetUniversity(id) })
   const { data: stages } = useQuery({ queryKey: ['stages', id], queryFn: () => apiGetStages(id) })
@@ -374,6 +376,7 @@ export default function AdminUniversityPage() {
       setDocsBach(uni.documents_bachelor ?? [])
       setDocsMast(uni.documents_masters ?? [])
       setDocsLang(uni.documents_language_year ?? [])
+      setReqs(uni.requirements && typeof uni.requirements === 'object' ? (uni.requirements as ReqValue) : {})
     }
   }, [uni])
 
@@ -408,6 +411,8 @@ export default function AdminUniversityPage() {
   const handleSaveMain = (d: Record<string, unknown>) => {
     updateUni.mutate({
       ...d,
+      cost: d.cost === '' || d.cost == null ? null : Number(d.cost),
+      requirements: Object.keys(reqs).length ? reqs : null,
       specialties: specialties.length ? specialties : [],
       programs_bachelor_chinese: progBachCn,
       programs_masters_chinese: progMastCn,
@@ -483,10 +488,15 @@ export default function AdminUniversityPage() {
           {/* Требования и сложность */}
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Требования к поступлению</p>
+
+            {/* Структурные требования — используются подбором напрямую */}
+            <RequirementsInput value={reqs} onChange={setReqs} />
+
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text-primary">Минимальные требования</label>
-              <textarea rows={3} placeholder="IELTS 5.5+, GPA выше 75%, возраст до 25 лет..." {...uniForm.register('min_requirements')}
+              <label className="text-sm font-medium text-text-primary">Описание требований (текст для студента)</label>
+              <textarea rows={3} placeholder="Например: аттестат, мотивационное письмо, рекомендации…" {...uniForm.register('min_requirements')}
                 className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              <p className="text-xs text-text-muted">Это поле только для показа в карточке. Числовые пороги задавайте выше.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
@@ -516,6 +526,18 @@ export default function AdminUniversityPage() {
           {/* Стоимость */}
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-semibold text-text-secondary uppercase tracking-wide">Стоимость</p>
+            <div>
+              <Input
+                label="Стоимость для подбора (число, в валюте страны / год)"
+                type="number"
+                placeholder="например, 28000"
+                {...uniForm.register('cost')}
+              />
+              <p className="mt-1 text-xs text-text-muted">
+                Это число используется в подборе, фильтре по бюджету и на ценнике карточки.
+                Указывайте в валюте страны вуза (Китай — юани). Поля ниже — текст только для показа.
+              </p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Бакалавриат" placeholder="25 000 – 40 000 RMB в год" {...uniForm.register('tuition_bachelor')} />
               <Input label="Магистратура" placeholder="30 000 – 45 000 RMB в год" {...uniForm.register('tuition_masters')} />

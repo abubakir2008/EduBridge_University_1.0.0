@@ -96,6 +96,24 @@ def advance_stage(db: Session, user: User, progress: StudentProgress) -> Student
     if not progress.current_stage_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нет активного этапа")
 
+    # Принудительное прохождение уроков: нельзя дальше, пока не просмотрены все уроки этапа
+    from app.models.lesson import Lesson
+    from app.models.lesson_view import LessonView
+    stage_lessons = db.query(Lesson).filter(Lesson.stage_id == progress.current_stage_id).all()
+    if stage_lessons:
+        viewed_ids = {
+            row[0] for row in db.query(LessonView.lesson_id).filter(
+                LessonView.user_id == user.id,
+                LessonView.lesson_id.in_([l.id for l in stage_lessons]),
+            ).all()
+        }
+        unseen = [l.title for l in stage_lessons if l.id not in viewed_ids]
+        if unseen:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Сначала посмотрите уроки: {', '.join(unseen)}",
+            )
+
     incomplete = db.query(StudentRequirement).join(Requirement).filter(
         StudentRequirement.student_progress_id == progress.id,
         StudentRequirement.completed == False,  # noqa: E712

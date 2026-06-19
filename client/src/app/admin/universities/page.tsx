@@ -3,9 +3,10 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import {
-  Plus, Search, Pencil, Trash2, MapPin, Star, DollarSign,
+  Plus, Search, Pencil, Trash2, MapPin, Star, Coins,
   GraduationCap, Image as ImageIcon,
 } from 'lucide-react'
+import { formatCost } from '@/lib/currency'
 import {
   apiGetUniversities, apiCreateUniversity, apiDeleteUniversity,
   getUniversityPhotoUrl,
@@ -118,8 +119,8 @@ function UniversityCard({
         {/* Стоимость */}
         {cost && (
           <div className="flex items-center gap-1.5 text-sm">
-            <DollarSign className="h-4 w-4 text-emerald-500" />
-            <span className="font-semibold text-emerald-600">${cost.toLocaleString()}</span>
+            <Coins className="h-4 w-4 text-emerald-500" />
+            <span className="font-semibold text-emerald-600">{formatCost(cost, uni.country)}</span>
             <span className="text-text-muted">/ год</span>
           </div>
         )}
@@ -233,7 +234,7 @@ export default function AdminUniversitiesPage() {
           <Input label="Провинция" placeholder="Shanghai, Jiangsu..." {...register('province')} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Рейтинг" type="number" {...register('rating')} />
-            <Input label="Стоимость ($/год)" type="number" {...register('cost')} />
+            <Input label="Стоимость (в валюте страны, /год)" type="number" {...register('cost')} />
           </div>
           <SpecialtiesInput value={specialties} onChange={setSpecialties} />
           <div className="flex flex-col gap-1.5">

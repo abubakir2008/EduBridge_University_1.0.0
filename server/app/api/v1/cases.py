@@ -2,20 +2,22 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import require_admin
 from app.models.case import Case
 from app.schemas.case import CaseCreate, CaseUpdate, CaseResponse
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 
+# GET'ы публичные: кейсы (истории успеха) показываются на маркетинговом лендинге
+# анонимным посетителям. Без этого фронт ловит 401 и редиректит гостя на /login.
 @router.get("", response_model=list[CaseResponse])
-def list_cases(db: Session = Depends(get_db), _=Depends(get_current_user)):
+def list_cases(db: Session = Depends(get_db)):
     return db.query(Case).order_by(Case.published_at.desc()).all()
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
-def get_case(case_id: uuid.UUID, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_case(case_id: uuid.UUID, db: Session = Depends(get_db)):
     case = db.get(Case, case_id)
     if not case:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Кейс не найден")

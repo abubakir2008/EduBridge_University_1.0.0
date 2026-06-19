@@ -1,32 +1,73 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, DollarSign, MapPin, Play, Calendar, CheckCircle2, BedDouble, Languages, Wallet, Award, X } from 'lucide-react'
+import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, Coins, MapPin, Play, Calendar, CheckCircle2, BedDouble, Languages, Wallet, Award, X } from 'lucide-react'
+import { formatCost } from '@/lib/currency'
 import { useAuthStore } from '@/lib/store/authStore'
 import { apiGetUniversities, apiMatchUniversities, getUniversityPhotoUrl } from '@/lib/api/universities'
 import { apiStartTraining } from '@/lib/api/training'
 import { apiAddFavourite, apiRemoveFavourite, apiGetFavourites } from '@/lib/api/favourites'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { University } from '@/types'
+import { cn } from '@/lib/utils'
+import type { University, MatchTier } from '@/types'
+
+const TIER_STYLE: Record<string, {
+  label: string
+  medal: string
+  ring: string
+  badge: string
+  bar: string
+  scoreText: string
+}> = {
+  gold: {
+    label: 'Золотой выбор',
+    medal: '🥇',
+    ring: 'ring-2 ring-amber-400 shadow-lg shadow-amber-200/50',
+    badge: 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white',
+    bar: 'bg-gradient-to-r from-amber-400 to-yellow-500',
+    scoreText: 'text-amber-600',
+  },
+  silver: {
+    label: 'Серебряный',
+    medal: '🥈',
+    ring: 'ring-1 ring-slate-300',
+    badge: 'bg-slate-200 text-slate-700',
+    bar: 'bg-gradient-to-r from-slate-400 to-slate-500',
+    scoreText: 'text-slate-600',
+  },
+  bronze: {
+    label: 'Бронзовый',
+    medal: '🥉',
+    ring: 'ring-1 ring-orange-200',
+    badge: 'bg-orange-100 text-orange-700',
+    bar: 'bg-gradient-to-r from-orange-400 to-amber-600',
+    scoreText: 'text-orange-600',
+  },
+}
+
+const DIFFICULTY_STYLE: Record<string, string> = {
+  'Легко': 'bg-emerald-50 text-emerald-700',
+  'Средний': 'bg-amber-50 text-amber-700',
+  'Сложно': 'bg-red-50 text-red-700',
+}
 
 function UniCard({
   uni,
   isFav,
-  isMatched,
+  matched,
   onFav,
   onDetail,
 }: {
   uni: University
   isFav: boolean
-  isMatched: boolean
+  matched: boolean
   onFav: () => void
   onDetail: () => void
 }) {
@@ -38,8 +79,22 @@ function UniCard({
     ? uni.specialties
     : uni.specialties ? [uni.specialties] : []
 
+  const tier = matched ? uni.match_tier : undefined
+  const tierStyle = tier ? TIER_STYLE[tier] : undefined
+  const score = uni.match_score
+  const reasons = uni.match_reasons ?? []
+  const gaps = uni.match_gaps ?? []
+
   return (
-    <div className="group bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+    <div
+      className={cn(
+        'group relative bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden transition-all duration-200 flex flex-col hover:shadow-card-hover hover:-translate-y-1',
+        tierStyle?.ring,
+      )}
+    >
+      {/* Цветная полоса тира сверху */}
+      {tierStyle && <div className={cn('h-1.5 w-full flex-shrink-0', tierStyle.bar)} />}
+
       {/* Обложка */}
       <div className="relative h-40 bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden flex-shrink-0">
         {coverUrl ? (
@@ -47,7 +102,7 @@ function UniCard({
           <img
             src={coverUrl}
             alt={uni.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
@@ -57,26 +112,36 @@ function UniCard({
             </div>
           </div>
         )}
-        {/* Рейтинг */}
-        {rating && (
-          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white">
+
+        {/* Тир-бейдж (в режиме подбора) или рейтинг */}
+        {tierStyle ? (
+          <div className={cn('absolute top-2 left-2 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm', tierStyle.badge)}>
+            <span>{tierStyle.medal}</span> {tierStyle.label}
+          </div>
+        ) : rating ? (
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-white shadow-sm">
             <Star className="h-3 w-3 fill-white" /> #{rating}
           </div>
-        )}
+        ) : null}
+
         {/* Видео бейдж */}
         {uni.video_file_id && (
           <div className="absolute top-2 right-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white font-semibold">
             <Play className="h-2.5 w-2.5 fill-white" /> VIDEO
           </div>
         )}
-        {/* Подходит вам */}
-        {isMatched && (
-          <div className="absolute bottom-2 left-2">
-            <Badge variant="success">Подходит вам</Badge>
+
+        {/* % совпадения */}
+        {matched && score != null && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 shadow-sm backdrop-blur">
+            <span className={cn('text-xs font-extrabold', tierStyle?.scoreText)}>{score}%</span>
+            <span className="text-[10px] font-medium text-text-muted">совпадение</span>
           </div>
         )}
+
         {/* Избранное */}
         <button
+          data-tour="uni-fav"
           onClick={(e) => { e.stopPropagation(); onFav() }}
           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow hover:bg-white transition-colors"
         >
@@ -94,15 +159,38 @@ function UniCard({
           </div>
         </div>
 
-        {cost && (
-          <div className="flex items-center gap-1 text-xs">
-            <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="font-semibold text-emerald-600">${cost.toLocaleString()}</span>
-            <span className="text-text-muted">/ год</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {cost && (
+            <div className="flex items-center gap-1 text-xs">
+              <Coins className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="font-semibold text-emerald-600">{formatCost(cost, uni.country)}</span>
+              <span className="text-text-muted">/ год</span>
+            </div>
+          )}
+          {uni.difficulty && (
+            <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', DIFFICULTY_STYLE[uni.difficulty] ?? 'bg-slate-100 text-slate-600')}>
+              {uni.difficulty}
+            </span>
+          )}
+        </div>
 
-        {specs.length > 0 && (
+        {/* Причины совпадения + чего не хватает (в режиме подбора) */}
+        {matched && (reasons.length > 0 || gaps.length > 0) ? (
+          <div className="flex flex-col gap-1">
+            {reasons.slice(0, 3).map((r, i) => (
+              <div key={`r${i}`} className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+                <CheckCircle2 className="h-3 w-3 flex-shrink-0 text-emerald-500" />
+                <span className="truncate">{r}</span>
+              </div>
+            ))}
+            {gaps.slice(0, 2).map((g, i) => (
+              <div key={`g${i}`} className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{g}</span>
+              </div>
+            ))}
+          </div>
+        ) : specs.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {specs.slice(0, 2).map((s, i) => (
               <span key={i} className="rounded-full bg-primary/8 text-primary px-2 py-0.5 text-[10px] font-medium truncate max-w-[110px]">{s}</span>
@@ -111,10 +199,10 @@ function UniCard({
               <span className="rounded-full bg-slate-100 text-slate-500 px-2 py-0.5 text-[10px]">+{specs.length - 2}</span>
             )}
           </div>
-        )}
+        ) : null}
 
         <div className="mt-auto pt-2">
-          <Button variant="outline" size="sm" className="w-full" onClick={onDetail}>
+          <Button data-tour="uni-detail" variant="outline" size="sm" className="w-full" onClick={onDetail}>
             Подробнее <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -141,6 +229,8 @@ export default function UniversitiesPage() {
   const [country, setCountry] = useState('')
   const [selected, setSelected] = useState<University | null>(null)
   const [showMatched, setShowMatched] = useState(false)
+  const [page, setPage] = useState(1)
+  const PER_PAGE = 9
 
   const params = Object.fromEntries(
     Object.entries({ search, country }).filter(([, v]) => v)
@@ -187,18 +277,49 @@ export default function UniversitiesPage() {
     },
   })
 
-  const displayList = showMatched && matched ? matched : universities ?? []
+  // «Все»: клиентская пагинация. «Подбор»: группировка по тирам (без пагинации).
+  const allList = universities ?? []
+  const totalPages = Math.max(1, Math.ceil(allList.length / PER_PAGE))
+  const safePage = Math.min(page, totalPages)
+  const pageItems = allList.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE)
+
+  const matchedList = matched ?? []
+  const tierGroups: { key: MatchTier; title: string; desc: string; items: University[] }[] = [
+    { key: 'gold', title: '🥇 Идеальный выбор', desc: 'Лучший баланс шансов и качества', items: matchedList.filter((u) => u.match_tier === 'gold') },
+    { key: 'silver', title: '🥈 Отличные варианты', desc: 'Хорошо подходят под ваш профиль', items: matchedList.filter((u) => u.match_tier === 'silver') },
+    { key: 'bronze', title: '🥉 Стоит рассмотреть', desc: 'Амбициозные и запасные варианты', items: matchedList.filter((u) => u.match_tier === 'bronze') },
+  ]
+
+  const renderCard = (uni: University, i: number) => (
+    <motion.div
+      key={uni.id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(i * 0.03, 0.3) }}
+    >
+      <UniCard
+        uni={uni}
+        isFav={favIds.has(uni.id)}
+        matched={showMatched}
+        onFav={() => toggleFav.mutate(uni)}
+        onDetail={() => setSelected(uni)}
+      />
+    </motion.div>
+  )
+
+  // Сброс на 1-ю страницу при смене фильтров/режима
+  useEffect(() => { setPage(1) }, [search, country, showMatched])
 
   return (
     <div className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text-primary">Университеты</h1>
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/compare"
+          <Link href="/dashboard/compare" data-tour="uni-compare"
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-slate-50 transition-colors">
             Сравнить
           </Link>
-          <Button variant={showMatched ? 'primary' : 'outline'} size="sm" onClick={() => setShowMatched(!showMatched)}>
+          <Button data-tour="uni-match" variant={showMatched ? 'primary' : 'outline'} size="sm" onClick={() => setShowMatched(!showMatched)}>
             {showMatched ? 'Все университеты' : 'Подобрать по моим данным'}
           </Button>
         </div>
@@ -212,7 +333,7 @@ export default function UniversitiesPage() {
       )}
 
       <div className="flex gap-3">
-        <div className="flex-1">
+        <div className="flex-1" data-tour="uni-search">
           <Input
             placeholder="Поиск по названию..."
             icon={<Search className="h-4 w-4" />}
@@ -232,40 +353,83 @@ export default function UniversitiesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
-      ) : displayList.length === 0 ? (
+      ) : showMatched ? (
+        /* ── Режим подбора: группы по тирам ── */
+        matchedList.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center">
+            <Search className="h-12 w-12 text-text-muted mb-4" />
+            <p className="text-text-secondary">Под ваши данные ничего не подошло</p>
+            <p className="mt-1 text-sm text-text-muted">Уточните предпочтения в профиле или посмотрите все университеты</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowMatched(false)}>
+              Показать все
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <p className="text-sm text-text-muted">
+              Подобрали {matchedList.length} вузов под ваш профиль и отсортировали по совпадению.
+            </p>
+            {tierGroups.filter((g) => g.items.length > 0).map((g) => (
+              <section key={g.key}>
+                <div className="mb-3">
+                  <h2 className="text-lg font-bold text-text-primary">{g.title}</h2>
+                  <p className="text-sm text-text-muted">{g.desc} · {g.items.length}</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {g.items.map(renderCard)}
+                </div>
+              </section>
+            ))}
+          </div>
+        )
+      ) : allList.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
           <Search className="h-12 w-12 text-text-muted mb-4" />
-          {showMatched ? (
-            <>
-              <p className="text-text-secondary">Под ваши данные ничего не подошло</p>
-              <p className="mt-1 text-sm text-text-muted">Уточните предпочтения в профиле или посмотрите все университеты</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowMatched(false)}>
-                Показать все
-              </Button>
-            </>
-          ) : (
-            <p className="text-text-secondary">Университеты не найдены</p>
-          )}
+          <p className="text-text-secondary">Университеты не найдены</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayList.map((uni, i) => (
-            <motion.div
-              key={uni.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-            >
-              <UniCard
-                uni={uni}
-                isFav={favIds.has(uni.id)}
-                isMatched={showMatched && !!matched?.find((m) => m.id === uni.id)}
-                onFav={() => toggleFav.mutate(uni)}
-                onDetail={() => setSelected(uni)}
-              />
-            </motion.div>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pageItems.map(renderCard)}
+          </div>
+
+          {/* Пагинация */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-slate-50 disabled:opacity-40"
+              >
+                ←
+              </button>
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const n = i + 1
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setPage(n)}
+                    className={cn(
+                      'min-w-[36px] rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                      n === safePage
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-slate-200 text-text-secondary hover:bg-slate-50'
+                    )}
+                  >
+                    {n}
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-slate-50 disabled:opacity-40"
+              >
+                →
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Детальный модал */}
@@ -279,7 +443,8 @@ export default function UniversitiesPage() {
           const coverId = selected.photo_file_ids?.[0]
           const coverUrl = coverId ? getUniversityPhotoUrl(selected.id, coverId) : null
           const location = [selected.city, selected.province, selected.country].filter(Boolean).join(', ')
-          const requirements = selected.min_requirements || selected.requirements
+          const requirements = selected.min_requirements
+            || (typeof selected.requirements === 'string' ? selected.requirements : '')
 
           const difficultyStyle: Record<string, string> = {
             'Легко': 'bg-emerald-500/90',
@@ -349,7 +514,7 @@ export default function UniversitiesPage() {
                 )}
                 {cost != null && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-                    <DollarSign className="h-3.5 w-3.5" /> от ${cost.toLocaleString()}/год
+                    <Coins className="h-3.5 w-3.5" /> от {formatCost(cost, selected.country)}/год
                   </span>
                 )}
                 {selected.has_language_year && (
@@ -429,6 +594,7 @@ export default function UniversitiesPage() {
               {/* Закреплённый CTA */}
               <div className="sticky bottom-0 -mx-6 -mb-6 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
                 <Button
+                  data-tour="tour-start-training"
                   className="w-full"
                   loading={startMutation.isPending}
                   onClick={() => startMutation.mutate(selected.id)}

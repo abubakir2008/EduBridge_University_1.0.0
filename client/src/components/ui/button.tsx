@@ -5,21 +5,21 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 rounded-button hover:scale-[1.01] active:scale-[0.98]',
+  'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:scale-[1.02] active:scale-[0.97]',
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-white hover:bg-primary-hover',
-        secondary: 'bg-surface text-text-primary hover:bg-surface-hover border border-slate-200',
-        ghost: 'text-text-secondary hover:bg-surface hover:text-text-primary',
-        danger: 'bg-error text-white hover:bg-red-600',
-        outline: 'border border-primary text-primary hover:bg-primary-50',
+        primary: 'bg-gradient-to-r from-primary to-navy text-white shadow-glow hover:shadow-glow-lg hover:brightness-110',
+        secondary: 'bg-white text-primary border-2 border-primary/30 hover:border-primary/60 hover:bg-primary/5',
+        ghost: 'text-text-secondary hover:bg-primary/5 hover:text-primary',
+        danger: 'bg-error text-white hover:bg-red-600 shadow-lg shadow-red-500/20',
+        outline: 'border-2 border-primary/30 text-primary hover:border-primary/60 hover:bg-primary/5',
       },
       size: {
-        sm: 'h-8 px-3 text-sm',
-        md: 'h-10 px-4 text-sm',
-        lg: 'h-12 px-6 text-base',
-        icon: 'h-9 w-9',
+        sm: 'h-9 px-4 text-sm',
+        md: 'h-11 px-5 text-sm',
+        lg: 'h-12 px-7 text-base',
+        icon: 'h-10 w-10',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

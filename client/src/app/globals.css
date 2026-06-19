@@ -67,11 +67,60 @@
   .surface-card {
     @apply bg-white rounded-card border border-slate-100 shadow-card;
   }
+
+  /* ── Job-стиль: насыщенные акценты ─────────────────────────────── */
+
+  /* Тёмная navy-секция (hero, CTA-блоки) */
+  .section-navy {
+    @apply relative overflow-hidden text-white bg-navy;
+  }
+
+  /* Градиент primary → navy для CTA-полос и крупных блоков */
+  .gradient-brand {
+    @apply bg-gradient-to-br from-primary to-navy;
+  }
+
+  /* Стеклянная карточка поверх тёмного фона (glassmorphism) */
+  .glass-card {
+    @apply bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-sm border border-white/20 rounded-3xl;
+  }
+
+  /* Капсула-бейдж (теги, статусы) */
+  .pill {
+    @apply inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full;
+  }
+
+  /* Геймификация: карточка статистики (XP/уровень/прогресс) */
+  .stat-tile {
+    @apply bg-white/10 rounded-2xl p-3 text-center;
+  }
+
+  /* Типографика тела статьи блога (HTML из rich-text редактора) */
+  .article-body {
+    @apply text-[15px] leading-relaxed text-text-primary;
+  }
+  .article-body h1 { @apply mt-8 mb-3 text-2xl font-bold text-text-primary; }
+  .article-body h2 { @apply mt-7 mb-3 text-xl font-bold text-text-primary; }
+  .article-body h3 { @apply mt-6 mb-2 text-lg font-semibold text-text-primary; }
+  .article-body p { @apply my-3; }
+  .article-body ul { @apply my-3 list-disc space-y-1 pl-6; }
+  .article-body ol { @apply my-3 list-decimal space-y-1 pl-6; }
+  .article-body a { @apply text-primary underline; }
+  .article-body strong { @apply font-semibold; }
+  .article-body hr { @apply my-6 border-slate-200; }
+  .article-body img { @apply my-4 rounded-xl; }
+  .article-body blockquote { @apply my-4 border-l-4 border-primary/30 pl-4 italic text-text-secondary; }
 }
 
 @layer utilities {
   /* Отступ под «safe area» iOS (вырез/домашняя полоса) */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Точечный фоновый паттерн для тёмных секций */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.4) 1px, transparent 0);
+    background-size: 36px 36px;
   }
 }

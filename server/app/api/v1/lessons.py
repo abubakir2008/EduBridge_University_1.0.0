@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
 from app.models.lesson import Lesson
+from app.models.lesson_view import LessonView
 from app.models.file import File
+from app.models.user import User
 from app.schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
 from app.services.file_service import stream_file
 
@@ -42,6 +44,25 @@ def get_lesson(lesson_id: uuid.UUID, db: Session = Depends(get_db), _=Depends(ge
     if not lesson:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Урок не найден")
     return lesson
+
+
+@router.post("/{lesson_id}/view", status_code=200)
+def mark_lesson_viewed(
+    lesson_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Отметить урок просмотренным текущим студентом (для разблокировки этапа)."""
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Урок не найден")
+    exists = db.query(LessonView).filter(
+        LessonView.user_id == user.id, LessonView.lesson_id == lesson_id,
+    ).first()
+    if not exists:
+        db.add(LessonView(user_id=user.id, lesson_id=lesson_id))
+        db.commit()
+    return {"viewed": True}
 
 
 @router.post("", response_model=LessonResponse, status_code=201)

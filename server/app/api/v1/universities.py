@@ -5,7 +5,9 @@ from app.db.session import get_db
 from app.api.deps import get_current_user, require_admin
 from app.models.user import User
 from app.models.file import File
-from app.schemas.university import UniversityCreate, UniversityUpdate, UniversityResponse
+from app.schemas.university import (
+    UniversityCreate, UniversityUpdate, UniversityResponse, MatchedUniversityResponse,
+)
 from app.schemas.stage import StageCreate, StageResponse
 from app.services import university_service
 from app.services import matching_service
@@ -44,9 +46,20 @@ def get_countries(db: Session = Depends(get_db), _=Depends(get_current_user)):
     return [r[0] for r in rows if r[0]]
 
 
-@router.get("/match", response_model=list[UniversityResponse])
+@router.get("/match", response_model=list[MatchedUniversityResponse])
 def match(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return matching_service.match_universities(db, current_user)
+    results = matching_service.match_universities(db, current_user)
+    out = []
+    for r in results:
+        base = UniversityResponse.model_validate(r.university).model_dump()
+        out.append(MatchedUniversityResponse(
+            **base,
+            match_score=r.score,
+            match_tier=r.tier,
+            match_reasons=r.reasons,
+            match_gaps=r.gaps,
+        ))
+    return out
 
 
 @router.post("", response_model=UniversityResponse, status_code=201)
