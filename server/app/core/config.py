@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     # Groq AI
     GROQ_API_KEY: str = ""
 
+    # Resemble.ai TTS (основной голос Барашка). Если ключ задан — используется первым.
+    RESEMBLE_API_KEY: str = ""
+    RESEMBLE_VOICE_ID: str = ""          # женский — Varvara (voice_uuid)
+    RESEMBLE_VOICE_ID_MALE: str = ""     # мужской — Михаил (voice_uuid)
+    RESEMBLE_SAMPLE_RATE: str = "44100"
+
     # ElevenLabs TTS (голос Барашка). Если ключ пуст — фронт откатывается на браузерный голос.
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "cgSgspJ2msm6clMCkdW9"          # женский — Jessica (Playful, Warm)

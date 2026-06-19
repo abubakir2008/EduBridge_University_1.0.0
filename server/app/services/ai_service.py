@@ -316,6 +316,33 @@ def _openai_tts(text: str, gender: str) -> bytes:
     return resp.content
 
 
+def _resemble_tts(text: str, gender: str) -> bytes:
+    """Resemble.ai TTS. Голоса: Varvara (жен) / Михаил (муж). Ответ — base64 mp3."""
+    import base64
+    import httpx
+    voice = settings.RESEMBLE_VOICE_ID_MALE if gender == "male" else settings.RESEMBLE_VOICE_ID
+    if not voice:
+        raise RuntimeError("Resemble voice_uuid не задан")
+    resp = httpx.post(
+        "https://f.cluster.resemble.ai/synthesize",
+        headers={"Authorization": f"Bearer {settings.RESEMBLE_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "voice_uuid": voice,
+            "data": text,
+            "output_format": "mp3",
+            "sample_rate": settings.RESEMBLE_SAMPLE_RATE,
+        },
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"Resemble error {resp.status_code}: {resp.text[:200]}")
+    body = resp.json()
+    audio_b64 = body.get("audio_content")
+    if not body.get("success") or not audio_b64:
+        raise RuntimeError(f"Resemble: пустой ответ {str(body)[:200]}")
+    return base64.b64decode(audio_b64)
+
+
 def text_to_speech(text: str, gender: str = "female") -> bytes:
     """Озвучка текста голосом Барашка. Приоритет: OpenAI TTS → ElevenLabs.
 
@@ -330,7 +357,14 @@ def text_to_speech(text: str, gender: str = "female") -> bytes:
     if not clean:
         raise ValueError("Пустой текст")
 
-    # 1) Edge TTS — бесплатно, русский Svetlana (основной)
+    # 1) Resemble.ai — основной голос Барашка (Varvara/Михаил), если задан ключ
+    if settings.RESEMBLE_API_KEY:
+        try:
+            return _resemble_tts(clean, gender)
+        except Exception as e:  # noqa: BLE001 — при сбое падаем на следующий провайдер
+            logger.warning("Resemble TTS failed: %s", e)
+
+    # 2) Edge TTS — бесплатный фолбэк (русский Svetlana)
     if settings.EDGE_TTS_ENABLED:
         try:
             return _edge_tts(clean, gender)
