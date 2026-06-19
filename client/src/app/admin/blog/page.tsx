@@ -146,9 +146,13 @@ function PostEditor({ initial, categories, onClose }: { initial: Draft; categori
 
   const set = (k: keyof Draft, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
 
+  const faq = form.faq ?? []
+  const setFaq = (next: NonNullable<Draft['faq']>) => set('faq', next)
+
   const save = useMutation({
     mutationFn: async (status: 'draft' | 'published') => {
-      const body: Draft = { ...form, status }
+      const cleanFaq = (form.faq ?? []).filter((f) => f.question?.trim() && f.answer?.trim())
+      const body: Draft = { ...form, faq: cleanFaq, status }
       if (isEdit) return apiUpdatePost(initial.id!, body)
       return apiCreatePost(body)
     },
@@ -216,6 +220,43 @@ function PostEditor({ initial, categories, onClose }: { initial: Draft; categori
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-text-secondary">Текст статьи</label>
         <RichTextEditor value={form.content ?? ''} onChange={(html) => set('content', html)} placeholder="Пишите статью…" minHeight="220px" />
+      </div>
+
+      {/* FAQ — вопросы и ответы (показываются на странице + FAQPage-разметка для Google/ИИ) */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-text-secondary">Частые вопросы (FAQ)</label>
+          <button type="button" onClick={() => setFaq([...faq, { question: '', answer: '' }])}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20">
+            <Plus className="h-3.5 w-3.5" /> Добавить вопрос
+          </button>
+        </div>
+        {faq.length === 0 && (
+          <p className="text-xs text-text-muted">Необязательно, но повышает шансы попасть в responses Google и ответы нейросетей.</p>
+        )}
+        {faq.map((item, idx) => (
+          <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={item.question}
+                onChange={(e) => setFaq(faq.map((f, k) => k === idx ? { ...f, question: e.target.value } : f))}
+                placeholder="Вопрос (например: Нужен ли китайский язык?)"
+                className="flex-1 rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button type="button" onClick={() => setFaq(faq.filter((_, k) => k !== idx))}
+                className="p-1.5 text-text-muted hover:text-error" title="Удалить">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <textarea
+              value={item.answer}
+              onChange={(e) => setFaq(faq.map((f, k) => k === idx ? { ...f, answer: e.target.value } : f))}
+              rows={2}
+              placeholder="Короткий самодостаточный ответ"
+              className="w-full rounded-input border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        ))}
       </div>
 
       <details className="rounded-xl border border-slate-100 bg-slate-50 p-3">

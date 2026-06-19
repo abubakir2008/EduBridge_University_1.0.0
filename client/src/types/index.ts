@@ -123,10 +123,16 @@ export interface PostListItem {
   created_at?: string | null
 }
 
+export interface FaqItem {
+  question: string
+  answer: string
+}
+
 export interface Post extends PostListItem {
   content?: string | null
   seo_title?: string | null
   seo_description?: string | null
+  faq?: FaqItem[] | null
 }
 
 export interface Category {

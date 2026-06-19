@@ -79,6 +79,7 @@ def create_post(db: Session, data: dict, author_id: uuid.UUID) -> Post:
         category=_norm_category(data.get("category")),
         excerpt=data.get("excerpt"),
         content=data.get("content"),
+        faq=data.get("faq"),
         cover_file_id=data.get("cover_file_id"),
         seo_title=data.get("seo_title"),
         seo_description=data.get("seo_description"),
@@ -96,7 +97,7 @@ def update_post(db: Session, post: Post, data: dict) -> Post:
     if "title" in data and data["title"]:
         post.title = data["title"]
         post.slug = _unique_slug(db, _slugify(data["title"]), exclude_id=post.id)
-    for field in ("excerpt", "content", "cover_file_id", "seo_title", "seo_description"):
+    for field in ("excerpt", "content", "faq", "cover_file_id", "seo_title", "seo_description"):
         if field in data:
             setattr(post, field, data[field])
     if "category" in data and data["category"]:

@@ -1,7 +1,12 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import uuid
+
+
+class FaqItem(BaseModel):
+    question: str
+    answer: str
 
 
 class PostCreate(BaseModel):
@@ -12,6 +17,7 @@ class PostCreate(BaseModel):
     cover_file_id: Optional[uuid.UUID] = None
     seo_title: Optional[str] = None
     seo_description: Optional[str] = None
+    faq: Optional[List[FaqItem]] = None
     status: str = "draft"          # draft | published
 
 
@@ -23,6 +29,7 @@ class PostUpdate(BaseModel):
     cover_file_id: Optional[uuid.UUID] = None
     seo_title: Optional[str] = None
     seo_description: Optional[str] = None
+    faq: Optional[List[FaqItem]] = None
     status: Optional[str] = None
 
 
@@ -45,6 +52,7 @@ class PostResponse(PostListItem):
     content: Optional[str] = None
     seo_title: Optional[str] = None
     seo_description: Optional[str] = None
+    faq: Optional[List[FaqItem]] = None
 
 
 # ── Рубрики ────────────────────────────────────────────────────────────────────

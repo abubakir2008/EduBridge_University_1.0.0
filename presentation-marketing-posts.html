@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Как продвигать сайт статьями · SEO + GEO для маркетинга — EduBridge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root{--navy:#0B2063;--navy2:#071540;--primary:#2563EB;--primary-light:#3B82F6;--muted:#94A3B8;--line:rgba(255,255,255,.12);--card:rgba(255,255,255,.06);--ok:#10B981;--amber:#F59E0B;--red:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;background:#05102e;color:#fff;overflow:hidden}
+  #bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--primary),#7dd3fc);z-index:50;transition:width .3s}
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;padding:5.5vh 7vw;
+    background:radial-gradient(120% 120% at 80% 0%,#142a6b 0%,var(--navy) 45%,var(--navy2) 100%);animation:fade .45s ease both}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .slide::before{content:"";position:absolute;inset:0;opacity:.16;pointer-events:none;background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.4) 1px,transparent 0);background-size:34px 34px}
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+  .g1{width:360px;height:360px;background:rgba(37,99,235,.34);top:-110px;right:6%}
+  .g2{width:260px;height:260px;background:rgba(124,58,237,.2);bottom:-90px;left:4%}
+  .inner{position:relative;z-index:2;max-width:1120px;margin:0 auto;width:100%}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9db4ff;background:rgba(255,255,255,.08);border:1px solid var(--line);padding:6px 13px;border-radius:999px;margin-bottom:18px}
+  h1{font-size:clamp(32px,5vw,62px);font-weight:900;line-height:1.06;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,3.3vw,40px);font-weight:800;line-height:1.12;margin-bottom:22px}
+  .grad{background:linear-gradient(90deg,#93c5fd,#3B82F6,#bfdbfe);-webkit-background-clip:text;background-clip:text;color:transparent}
+  p.lead{font-size:clamp(15px,1.6vw,20px);color:#c7d2fe;line-height:1.6;max-width:820px}
+  .grid{display:grid;gap:16px;margin-top:6px}
+  .g2c{grid-template-columns:repeat(2,1fr)}.g3c{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card h3{font-size:17px;font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:10px}
+  .card p{font-size:14px;color:#b9c4ee;line-height:1.55}
+  .ic{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#1e3a8a);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .ic svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  ul.checks{list-style:none;margin-top:14px;display:grid;gap:12px}
+  ul.checks li{display:flex;gap:12px;align-items:flex-start;font-size:16px;color:#dbe3ff;line-height:1.5}
+  .chk{width:25px;height:25px;border-radius:7px;background:rgba(16,185,129,.16);border:1px solid rgba(16,185,129,.4);display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+  .chk svg{width:14px;height:14px;stroke:#34d399;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  /* пример «плохо/хорошо» */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  .ex{border-radius:14px;padding:18px 20px;font-size:15.5px;line-height:1.5}
+  .bad{background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.4)}
+  .good{background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.4)}
+  .ex .lbl{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .bad .lbl{color:#fca5a5}.good .lbl{color:#6ee7b7}
+  .ex .q{color:#fff;font-weight:600}
+  /* сниппет-карточка статьи */
+  .snippet{background:#0a1840;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-top:8px;font-size:15px;line-height:1.6}
+  .snippet .h1e{font-size:22px;font-weight:800;color:#fff;margin-bottom:10px}
+  .snippet .h2e{font-size:16px;font-weight:700;color:#93c5fd;margin:14px 0 6px}
+  .snippet p{color:#cdd7f7}
+  .snippet .meta{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;color:#9db4ff;font-size:13px}
+  .pill{display:inline-block;font-size:12.5px;font-weight:600;color:#dbe3ff;background:rgba(255,255,255,.07);border:1px solid var(--line);padding:6px 12px;border-radius:9px;margin:4px 6px 0 0}
+  .flow{display:flex;gap:0;margin-top:22px;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+  .step .n{width:32px;height:32px;border-radius:50%;background:var(--primary);font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+  .step h4{font-size:14.5px;margin-bottom:5px}.step p{font-size:12.5px;color:#aab6e6;line-height:1.4}
+  .arrow{display:flex;align-items:center;color:#5b73c9;font-size:24px;padding:0 5px}
+  .author{margin-top:34px;display:flex;align-items:center;gap:14px}
+  .ava{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px}
+  .author .nm{font-size:18px;font-weight:800}.author .rl{color:#9db4ff;font-size:13.5px}
+  .nav{position:fixed;bottom:20px;right:24px;display:flex;gap:9px;z-index:60}
+  .btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:19px;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .btn:hover{background:var(--primary);border-color:var(--primary)}
+  .counter{position:fixed;bottom:28px;left:24px;color:#8ea0d8;font-size:13.5px;font-weight:600;z-index:60}
+  .brand{position:fixed;top:18px;left:24px;display:flex;align-items:center;gap:9px;z-index:60;color:#fff;font-weight:800}
+  .brand .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center}
+  .brand .logo svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:2}
+  .hint{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);color:#6b7db5;font-size:12px;z-index:60}
+  @media(max-width:720px){.g2c,.g3c,.cmp{grid-template-columns:1fr}.flow{flex-direction:column}.arrow{transform:rotate(90deg);padding:4px 0}.brand{display:none}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div class="brand"><span class="logo"><svg viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></span>EduBridge</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide active">
+    <div class="glow g1"></div><div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Гайд для отдела маркетинга</span>
+      <h1>Как продвигать сайт<br><span class="grad">статьями</span></h1>
+      <p class="lead" style="margin-top:20px">Простыми словами: что такое SEO и GEO, как Google и нейросети находят наши тексты, и как писать посты, которые приводят студентов. С примерами «как надо».</p>
+      <div class="author"><div class="ava">EB</div><div><div class="nm">EduBridge · Блог</div><div class="rl">Подготовил: Абубакир Махамаджанов</div></div></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Зачем это нужно</span>
+      <h2>Каждая статья — это <span class="grad">бесплатный поток клиентов</span></h2>
+      <div class="grid g3c">
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>Люди ищут в Google</h3><p>«как поступить в вуз Китая», «учёба за границей со стипендией» — и находят нашу статью.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 10h6M9 14h4"/></svg></span>Люди спрашивают ИИ</h3><p>ChatGPT и Perplexity отвечают и ссылаются на сайты. Хотим, чтобы называли нас.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg></span>Работает годами</h3><p>Одна хорошая статья приводит читателей месяцами без затрат на рекламу.</p></div>
+      </div>
+      <p class="lead" style="margin-top:24px">Реклама перестаёт работать, как только кончился бюджет. Статья — актив, который работает постоянно.</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Простыми словами</span>
+      <h2>Что такое <span class="grad">SEO и GEO</span></h2>
+      <div class="cmp">
+        <div class="ex good"><div class="lbl">SEO — для поисковиков</div><div class="q">Делаем так, чтобы <b>Google и Яндекс</b> показывали нашу статью выше по нужным запросам. Главное — польза для читателя и правильная структура.</div></div>
+        <div class="ex good"><div class="lbl">GEO — для нейросетей</div><div class="q">Делаем так, чтобы <b>ChatGPT, Claude, Perplexity</b> брали факты из наших статей и упоминали EduBridge в ответах людям.</div></div>
+      </div>
+      <p class="lead" style="margin-top:22px">Хорошая новость: правила почти одинаковые. Пишем понятный, полезный текст с чёткими ответами — выигрываем в обоих каналах.</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Как нас находят</span>
+      <h2>Путь читателя <span class="grad">до нашей статьи</span></h2>
+      <div class="flow">
+        <div class="step"><div class="n">1</div><h4>Вопрос</h4><p>У человека есть проблема: «как поступить»</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">2</div><h4>Поиск / ИИ</h4><p>Спрашивает Google или ChatGPT</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">3</div><h4>Наша статья</h4><p>Даёт точный полезный ответ</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">4</div><h4>Заявка</h4><p>Внизу статьи — призыв оставить заявку</p></div>
+      </div>
+      <p class="lead" style="margin-top:24px">Наша задача — чтобы на шаге 3 человек нашёл именно нас и получил ответ лучше, чем у конкурентов.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Принцип №1</span>
+      <h2>Одна статья = <span class="grad">ответ на один вопрос</span></h2>
+      <p class="lead" style="margin-bottom:16px">Не «обо всём понемногу», а на конкретный запрос, который реально вводят люди. Берём вопрос из головы абитуриента.</p>
+      <div class="grid g2c">
+        <div class="card"><h3>Где брать темы</h3><p>Реальные вопросы клиентов в директе и на консультациях. Подсказки Google (автодополнение, «Похожие запросы»). Рубрики блога: переезд, поступление, языки, гранты.</p></div>
+        <div class="card"><h3>Ключевое слово</h3><p>Это то, как люди ищут. Вставляем его в заголовок, первый абзац и пару подзаголовков — естественно, без спама.</p></div>
+      </div>
+      <div style="margin-top:18px">
+        <span class="pill">как поступить в вуз Китая из Кыргызстана</span>
+        <span class="pill">учёба в Италии бесплатно</span>
+        <span class="pill">HSK или IELTS — что сдавать</span>
+        <span class="pill">гранты на обучение за границей 2026</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Структура статьи</span>
+      <h2>Скелет <span class="grad">идеального поста</span></h2>
+      <div class="snippet">
+        <div class="h1e">H1 — Заголовок с ключевым словом</div>
+        <p>Вступление: дайте короткий ответ сразу, в 2–3 предложениях.</p>
+        <div class="h2e">H2 — Шаг 1 / Подтема</div>
+        <p>Абзац + маркированный список по сути.</p>
+        <div class="h2e">H2 — Шаг 2 / Подтема</div>
+        <p>Факты с конкретикой: цифры, сроки, требования.</p>
+        <div class="h2e">H2 — Частые вопросы (FAQ)</div>
+        <p>3–5 коротких «вопрос → ответ».</p>
+        <div class="meta">Призыв к действию: «Оставьте заявку — подберём вуз бесплатно» · Обложка · Рубрика · Краткое описание</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Фрагмент · Заголовок</span>
+      <h2>Как писать <span class="grad">заголовок (H1)</span></h2>
+      <div class="cmp">
+        <div class="ex bad"><div class="lbl">Плохо</div><div class="q">«Наши услуги по поступлению»</div><p style="color:#e9b8b8;margin-top:8px;font-size:13.5px">Никто так не ищет. Нет конкретики и ключевого слова.</p></div>
+        <div class="ex good"><div class="lbl">Хорошо</div><div class="q">«Как поступить в вуз Китая из Кыргызстана в 2026: пошаговый гайд»</div><p style="color:#bdebd2;margin-top:8px;font-size:13.5px">Есть запрос, страна, год, обещание пользы.</p></div>
+      </div>
+      <ul class="checks" style="margin-top:20px">
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Ключевое слово ближе к началу.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Конкретика: страна, год, «пошагово», «бесплатно», цифры.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Длина 50–65 символов — влезает в выдачу Google.</div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Фрагмент · Вступление</span>
+      <h2>Дайте ответ <span class="grad">в первых строках</span></h2>
+      <p class="lead" style="margin-bottom:14px">Это самое важное и для Google, и для ИИ: первый абзац должен сам по себе отвечать на вопрос. Нейросеть процитирует именно его.</p>
+      <div class="cmp">
+        <div class="ex bad"><div class="lbl">Плохо · вода</div><div class="q">«Образование за границей — мечта многих молодых людей. В современном мире всё больше студентов задумываются…»</div></div>
+        <div class="ex good"><div class="lbl">Хорошо · сразу суть</div><div class="q">«Чтобы поступить в университет Китая из Кыргызстана, нужно выбрать вуз, сдать HSK или IELTS, собрать документы и подать заявку до апреля. Ниже — разбор каждого шага.»</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Фрагмент · FAQ</span>
+      <h2>Блок вопросов = <span class="grad">магнит для Google и ИИ</span></h2>
+      <p class="lead" style="margin-bottom:14px">Короткие самодостаточные ответы. Именно их Google делает «расширенными сниппетами», а ИИ — цитирует.</p>
+      <div class="snippet">
+        <div class="h2e" style="margin-top:0">Нужно ли знать китайский язык?</div>
+        <p>Для программ на английском достаточно IELTS 6.0. Для программ на китайском — HSK 4–5. Многие вузы дают подготовительный языковой год.</p>
+        <div class="h2e">Можно ли поступить на грант?</div>
+        <p>Да. Мы подбираем вузы со стипендиями и помогаем подать документы на финансирование.</p>
+        <div class="h2e">Сколько длится поступление?</div>
+        <p>В среднем 1–6 месяцев в зависимости от страны и сроков подачи.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Фрагмент · Описание и CTA</span>
+      <h2>Краткое описание <span class="grad">и призыв к действию</span></h2>
+      <div class="grid g2c">
+        <div class="card">
+          <h3>Краткое описание (для Google и карточки)</h3>
+          <div class="ex good" style="margin-top:10px"><div class="lbl">Пример · до 155 символов</div><div class="q" style="font-size:14.5px">«Пошаговый гайд: как поступить в университет Китая из Кыргызстана в 2026 — выбор вуза, языковые тесты, документы, сроки и гранты.»</div></div>
+        </div>
+        <div class="card">
+          <h3>Призыв к действию (в конце статьи)</h3>
+          <div class="ex good" style="margin-top:10px"><div class="lbl">Пример</div><div class="q" style="font-size:14.5px">«Не знаете, в какой вуз поступить? Оставьте заявку — бесплатно подберём университет под ваш балл и бюджет и проведём за руку до зачисления.»</div></div>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:20px">Без призыва статья просто информирует. С призывом — превращает читателя в заявку.</p>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Как опубликовать</span>
+      <h2>Публикация <span class="grad">в нашей админке</span></h2>
+      <p class="lead" style="margin-bottom:14px">Админка → раздел «Блог» → «Новая статья». Заполняем поля:</p>
+      <div class="grid g3c">
+        <div class="card"><h3>Заголовок</h3><p>H1 с ключевым словом. Адрес статьи создаётся сам.</p></div>
+        <div class="card"><h3>Рубрика</h3><p>Переезд / Поступление / Языки / Гранты. Управляются в «Рубрики».</p></div>
+        <div class="card"><h3>Обложка</h3><p>Картинка для карточки и превью в соцсетях.</p></div>
+        <div class="card"><h3>Краткое описание</h3><p>1–2 предложения — идут в Google и карточку.</p></div>
+        <div class="card"><h3>Текст статьи</h3><p>Редактор с заголовками, списками, выделением.</p></div>
+        <div class="card"><h3>SEO (необязательно)</h3><p>Свой SEO-заголовок и описание, если нужно.</p></div>
+      </div>
+      <p class="lead" style="margin-top:18px">«Сохранить черновик» — отложить. «Опубликовать» — статья появляется на /blog и в карте сайта автоматически.</p>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Чек-лист</span>
+      <h2>Перед тем как <span class="grad">нажать «Опубликовать»</span></h2>
+      <div class="grid g2c">
+        <ul class="checks">
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Заголовок с ключевым словом и конкретикой</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Ответ на вопрос — в первом абзаце</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Подзаголовки H2, списки, абзацы по сути</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Блок FAQ (3–5 вопросов)</div></li>
+        </ul>
+        <ul class="checks">
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Обложка и краткое описание заполнены</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Призыв оставить заявку в конце</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Выбрана правильная рубрика</div></li>
+          <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Факты с конкретикой: цифры, страны, сроки</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Чего избегать</span>
+      <h2>Главные <span class="grad">ошибки</span></h2>
+      <div class="grid g2c">
+        <div class="ex bad"><div class="lbl">Вода и общие фразы</div><div class="q" style="font-size:15px">«В современном мире образование очень важно…» — Google и люди это пролистывают.</div></div>
+        <div class="ex bad"><div class="lbl">Кликбейт без ответа</div><div class="q" style="font-size:15px">Громкий заголовок, а в тексте нет обещанного — читатель уходит, рейтинг падает.</div></div>
+        <div class="ex bad"><div class="lbl">Копипаст</div><div class="q" style="font-size:15px">Скопированный с других сайтов текст не индексируется и вредит репутации.</div></div>
+        <div class="ex bad"><div class="lbl">Спам ключевыми словами</div><div class="q" style="font-size:15px">«Поступление Китай поступление Китай…» — Google наказывает за переспам.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide">
+    <div class="glow g1"></div><div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Итог</span>
+      <h2>Формула <span class="grad">работающего поста</span></h2>
+      <p class="lead">Реальный вопрос + честный полезный ответ + чёткая структура + FAQ + призыв к заявке = трафик из Google и упоминания в нейросетях.</p>
+      <ul class="checks" style="margin-top:24px">
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Пишем для человека — алгоритмы любят то же, что и читатели.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Регулярность важнее объёма: 2–4 качественные статьи в месяц по рубрикам.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Каждая статья закрывает один вопрос абитуриента и ведёт к заявке.</div></li>
+      </ul>
+      <div class="author"><div class="ava">EB</div><div><div class="nm">EduBridge · Блог</div><div class="rl">Вопросы по публикациям — к Абубакиру Махамаджанову</div></div></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="counter"><span id="cur">1</span> / <span id="total">14</span></div>
+<div class="hint">Листайте стрелками &larr; &rarr; или пробелом</div>
+<div class="nav"><button class="btn" id="prev">&lsaquo;</button><button class="btn" id="next">&rsaquo;</button></div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];let i=0;const total=slides.length;
+  document.getElementById('total').textContent=total;
+  function show(n){i=Math.max(0,Math.min(total-1,n));slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('cur').textContent=i+1;document.getElementById('bar').style.width=((i+1)/total*100)+'%';}
+  document.getElementById('next').onclick=()=>show(i+1);document.getElementById('prev').onclick=()=>show(i-1);
+  document.addEventListener('keydown',e=>{if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();show(i+1)}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();show(i-1)}if(e.key==='Home')show(0);if(e.key==='End')show(total-1);});
+  let x0=null;addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)show(i+(dx<0?1:-1));x0=null;},{passive:true});
+  show(0);
+</script>
+</body>
+</html>

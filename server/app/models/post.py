@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -28,6 +28,7 @@ class Post(Base):
 
     excerpt = Column(String(500), nullable=True)   # короткое описание для карточки/мета
     content = Column(Text, nullable=True)          # HTML тела статьи (rich text)
+    faq = Column(JSON, nullable=True)              # список {question, answer} → FAQ-блок + FAQPage-разметка
     cover_file_id = Column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="SET NULL"), nullable=True)
 
     # SEO/GEO

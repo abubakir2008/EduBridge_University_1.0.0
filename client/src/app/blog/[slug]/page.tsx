@@ -37,8 +37,9 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
   const date = post.published_at || post.created_at
   const image = post.cover_file_id ? `${SITE}${getPostCoverUrl(post.cover_file_id)}` : undefined
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const faq = (post.faq ?? []).filter((f) => f?.question && f?.answer)
+
+  const article = {
     '@type': 'Article',
     headline: post.title,
     description: post.seo_description || post.excerpt || undefined,
@@ -53,6 +54,19 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE}/blog/${post.slug}` },
   }
+
+  const graph: object[] = [article]
+  if (faq.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: faq.map((f) => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: { '@type': 'Answer', text: f.answer },
+      })),
+    })
+  }
+  const jsonLd = { '@context': 'https://schema.org', '@graph': graph }
 
   return (
     <div className="min-h-screen bg-background-elevated">
@@ -95,6 +109,24 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
 
         {post.content && (
           <div className="article-body mt-6" dangerouslySetInnerHTML={{ __html: post.content }} />
+        )}
+
+        {/* FAQ-блок (виден читателю + FAQPage-разметка для Google/ИИ) */}
+        {faq.length > 0 && (
+          <section className="mt-12">
+            <h2 className="text-2xl font-bold text-text-primary mb-5">Частые вопросы</h2>
+            <div className="space-y-3">
+              {faq.map((f, i) => (
+                <details key={i} className="group rounded-card border border-slate-100 bg-white p-5 shadow-card">
+                  <summary className="flex cursor-pointer items-center justify-between gap-4 font-semibold text-text-primary list-none">
+                    {f.question}
+                    <span className="text-primary transition-transform group-open:rotate-45 text-xl leading-none">+</span>
+                  </summary>
+                  <p className="mt-3 text-text-secondary leading-relaxed">{f.answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* CTA */}
