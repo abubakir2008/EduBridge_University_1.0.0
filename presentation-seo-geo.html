@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SEO &amp; GEO оптимизация — EduBridge | Абубакир Махамаджанов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#0B2063; --navy2:#071540; --primary:#2563EB; --primary-light:#3B82F6;
+    --ink:#0F172A; --muted:#94A3B8; --line:rgba(255,255,255,.12);
+    --card:rgba(255,255,255,.06); --ok:#10B981; --amber:#F59E0B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',system-ui,sans-serif; background:#05102e; color:#fff;
+    overflow:hidden;
+  }
+  /* progress */
+  #bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--primary),#7dd3fc);z-index:50;transition:width .3s}
+  /* deck */
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:6vh 8vw;background:radial-gradient(120% 120% at 80% 0%, #142a6b 0%, var(--navy) 45%, var(--navy2) 100%);
+    animation:fade .45s ease both;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* dot grid bg */
+  .slide::before{content:"";position:absolute;inset:0;opacity:.18;pointer-events:none;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.4) 1px, transparent 0);background-size:34px 34px}
+  .glow{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+  .g1{width:380px;height:380px;background:rgba(37,99,235,.35);top:-120px;right:6%}
+  .g2{width:280px;height:280px;background:rgba(124,58,237,.22);bottom:-100px;left:4%}
+  .inner{position:relative;z-index:2;max-width:1100px;margin:0 auto;width:100%}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9db4ff;background:rgba(255,255,255,.08);border:1px solid var(--line);padding:7px 14px;border-radius:999px;margin-bottom:22px}
+  h1{font-size:clamp(34px,5.4vw,68px);font-weight:900;line-height:1.05;letter-spacing:-.02em}
+  h2{font-size:clamp(26px,3.6vw,44px);font-weight:800;line-height:1.1;margin-bottom:28px}
+  .grad{background:linear-gradient(90deg,#93c5fd,#3B82F6,#bfdbfe);-webkit-background-clip:text;background-clip:text;color:transparent}
+  p.lead{font-size:clamp(16px,1.7vw,21px);color:#c7d2fe;line-height:1.6;max-width:760px}
+  .sub{color:#aab6e6}
+  /* cards */
+  .grid{display:grid;gap:18px;margin-top:10px}
+  .g2c{grid-template-columns:repeat(2,1fr)}
+  .g3c{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 22px;backdrop-filter:blur(4px)}
+  .card h3{font-size:18px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  .card p{font-size:14.5px;color:#b9c4ee;line-height:1.55}
+  .ic{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--primary),#1e3a8a);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .ic svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  ul.checks{list-style:none;margin-top:18px;display:grid;gap:14px}
+  ul.checks li{display:flex;gap:13px;align-items:flex-start;font-size:16.5px;color:#dbe3ff;line-height:1.5}
+  .chk{width:26px;height:26px;border-radius:8px;background:rgba(16,185,129,.16);border:1px solid rgba(16,185,129,.4);display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+  .chk svg{width:15px;height:15px;stroke:#34d399;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .tagrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .tag{font-size:14px;font-weight:600;color:#dbe3ff;background:rgba(255,255,255,.07);border:1px solid var(--line);padding:9px 15px;border-radius:11px}
+  .flow{display:flex;align-items:stretch;gap:0;margin-top:26px;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;position:relative}
+  .step .n{width:34px;height:34px;border-radius:50%;background:var(--primary);font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+  .step h4{font-size:15px;margin-bottom:6px}
+  .step p{font-size:13px;color:#aab6e6;line-height:1.45}
+  .arrow{display:flex;align-items:center;color:#5b73c9;font-size:26px;padding:0 6px}
+  .prob{border-left:4px solid var(--amber);background:rgba(245,158,11,.10)}
+  .fix{border-left:4px solid var(--ok);background:rgba(16,185,129,.10)}
+  .big{font-size:clamp(40px,6vw,84px);font-weight:900;line-height:1}
+  .stat{display:flex;gap:40px;flex-wrap:wrap;margin-top:30px}
+  .stat .v{font-size:clamp(30px,4vw,52px);font-weight:900}
+  .stat .l{color:#aab6e6;font-size:14px;margin-top:4px}
+  .author{margin-top:42px;display:flex;align-items:center;gap:16px}
+  .ava{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;box-shadow:0 8px 30px rgba(37,99,235,.4)}
+  .author .nm{font-size:20px;font-weight:800}
+  .author .rl{color:#9db4ff;font-size:14px}
+  /* nav */
+  .nav{position:fixed;bottom:22px;right:26px;display:flex;align-items:center;gap:10px;z-index:60}
+  .btn{width:46px;height:46px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .btn:hover{background:var(--primary);border-color:var(--primary)}
+  .counter{position:fixed;bottom:30px;left:26px;color:#8ea0d8;font-size:14px;font-weight:600;z-index:60}
+  .brand{position:fixed;top:20px;left:26px;display:flex;align-items:center;gap:9px;z-index:60;color:#fff;font-weight:800}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center}
+  .brand .logo svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2}
+  .hint{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);color:#6b7db5;font-size:12.5px;z-index:60}
+  @media(max-width:680px){.g2c,.g3c{grid-template-columns:1fr}.flow{flex-direction:column}.arrow{transform:rotate(90deg);padding:4px 0}.brand{display:none}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div class="brand"><span class="logo"><svg viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></span>EduBridge</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="glow g1"></div><div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Кейс · Технический отчёт</span>
+      <h1>SEO &amp; GEO оптимизация<br><span class="grad">сайта EduBridge</span></h1>
+      <p class="lead" style="margin-top:22px">Как мы вернули сайт в индекс Google и сделали его «видимым» для нейросетей — ChatGPT, Claude, Perplexity и AI-поиска Google.</p>
+      <div class="author">
+        <div class="ava">АМ</div>
+        <div><div class="nm">Абубакир Махамаджанов</div><div class="rl">Автор · Full-stack разработчик EduBridge</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PROBLEM -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Проблема</span>
+      <h2>Сайт <span class="grad">не индексировался</span> Google 2 недели</h2>
+      <div class="grid g2c">
+        <div class="card prob">
+          <h3>Что происходило</h3>
+          <p>В Google Search Console запрос на индексацию не проходил — система просила «повторить позже». Страницы не попадали в поиск.</p>
+        </div>
+        <div class="card prob">
+          <h3>Почему это критично</h3>
+          <p>Без индексации сайта нет в выдаче Google → нет органического трафика → новые студенты не находят сервис.</p>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:26px">Нужно было найти техническую причину, устранить её и заложить фундамент, понятный и поисковикам, и нейросетям.</p>
+    </div>
+  </section>
+
+  <!-- 3 DIAGNOSIS -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Диагностика</span>
+      <h2>Корневая причина: <span class="grad">скрытый редирект</span></h2>
+      <div class="flow">
+        <div class="step"><div class="n">1</div><h4>Googlebot заходит</h4><p>Робот открывает главную страницу сайта</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">2</div><h4>Запрос данных</h4><p>Страница грузит блок «Кейсы» через API</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step prob"><div class="n">3</div><h4>Ошибка 401</h4><p>API требовал авторизацию даже для гостя</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step prob"><div class="n">4</div><h4>Редирект на /login</h4><p>Робот видел форму входа, а не контент</p></div>
+      </div>
+      <p class="lead" style="margin-top:28px">Google индексировал «пустую» страницу логина вместо лендинга — поэтому и отклонял индексацию.</p>
+    </div>
+  </section>
+
+  <!-- 4 FIX -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Решение</span>
+      <h2>Сделали контент <span class="grad">видимым для роботов</span></h2>
+      <ul class="checks">
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>Публичный контент.</b> Открыли публичные данные (кейсы, блог) без авторизации — робот видит реальную страницу.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>Server-Side Rendering (Next.js).</b> HTML с заголовками и текстом отдаётся сразу — не ждёт выполнения JavaScript.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>Корректные коды ответов.</b> Главная отдаёт 200 OK с контентом, приватные разделы закрыты в robots.</div></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5 SEO vs GEO -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Два направления</span>
+      <h2>SEO и GEO — <span class="grad">в чём разница</span></h2>
+      <div class="grid g2c">
+        <div class="card">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>SEO</h3>
+          <p><b>Search Engine Optimization.</b> Оптимизация под поисковики (Google, Яндекс): мета-теги, структура, скорость, ссылки. Цель — попасть в топ выдачи.</p>
+        </div>
+        <div class="card">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 10h6M9 14h4"/></svg></span>GEO</h3>
+          <p><b>Generative Engine Optimization.</b> Оптимизация под нейросети (ChatGPT, Claude, Perplexity, AI-обзоры Google). Цель — чтобы ИИ цитировал ваш сайт в ответах.</p>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:24px">Сегодня люди ищут не только в Google, но и спрашивают у нейросетей. Мы оптимизировали под оба канала.</p>
+    </div>
+  </section>
+
+  <!-- 6 SEO tech -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Технологии SEO</span>
+      <h2>Что помогает <span class="grad">Google находить сайт</span></h2>
+      <div class="grid g3c">
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>Метаданные</h3><p>Next.js Metadata API: title, description, keywords для каждой страницы.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 9h18M9 21V9"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>robots.txt</h3><p>Указывает роботам, что можно индексировать, а что закрыть.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg></span>sitemap.xml</h3><p>Карта сайта со всеми страницами и блогом — обновляется автоматически.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span>Canonical</h3><p>Канонические URL — устраняют дубли страниц в индексе.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></span>Open Graph</h3><p>Красивые превью со своей картинкой при шеринге в соцсетях и мессенджерах.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg></span>SSR + скорость</h3><p>Серверный рендер Next.js — быстрый и полный HTML для роботов.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 Structured data -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Сердце оптимизации</span>
+      <h2>Структурированные данные <span class="grad">Schema.org (JSON-LD)</span></h2>
+      <p class="lead" style="margin-bottom:22px">Машиночитаемая разметка, которая объясняет поисковику и ИИ, что именно на странице.</p>
+      <div class="grid g2c">
+        <div class="card"><h3>Organization</h3><p>Кто мы: название, логотип, контакты, год основания, гео-охват, число студентов.</p></div>
+        <div class="card"><h3>WebSite</h3><p>Описание сайта и издателя — связывает все сущности воедино.</p></div>
+        <div class="card"><h3>FAQPage</h3><p>Вопросы и ответы → расширенные сниппеты в Google и готовые ответы для ИИ.</p></div>
+        <div class="card"><h3>Article</h3><p>Разметка статей блога: заголовок, дата, автор, обложка — для новостной выдачи.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 GEO tech -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Технологии GEO</span>
+      <h2>Что помогает <span class="grad">нейросетям находить сайт</span></h2>
+      <ul class="checks">
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>llms.txt</b> — отдельный файл-описание сайта для ИИ: что за сервис, страны, факты, FAQ. Новый стандарт для AI-краулеров.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>FAQ с самодостаточными ответами</b> — нейросети цитируют именно такой формат «вопрос → чёткий ответ».</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>Доступ для AI-краулеров</b> — в robots явно разрешили GPTBot, ClaudeBot, PerplexityBot, Google-Extended.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div><b>Чистая семантика</b> — правильные заголовки и факты с конкретикой (страны, цифры), которые легко извлечь.</div></li>
+      </ul>
+      <div class="tagrow">
+        <span class="tag">GPTBot · ChatGPT</span><span class="tag">ClaudeBot</span><span class="tag">PerplexityBot</span><span class="tag">Google-Extended</span><span class="tag">Applebot</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 How Google finds -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Как это работает</span>
+      <h2>Путь страницы <span class="grad">в поиск Google</span></h2>
+      <div class="flow">
+        <div class="step"><div class="n">1</div><h4>Crawl</h4><p>Робот обходит сайт по sitemap и ссылкам</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">2</div><h4>Render</h4><p>Рендерит HTML и читает мета + JSON-LD</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">3</div><h4>Index</h4><p>Заносит страницу в индекс по темам</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step fix"><div class="n">4</div><h4>Rank</h4><p>Показывает в выдаче по запросам</p></div>
+      </div>
+      <p class="lead" style="margin-top:26px">Мы устранили обрыв на шаге Render (редирект) и усилили шаги Index/Rank структурой и разметкой.</p>
+    </div>
+  </section>
+
+  <!-- 10 How AI finds -->
+  <section class="slide">
+    <div class="glow g1"></div>
+    <div class="inner">
+      <span class="kicker">Как это работает</span>
+      <h2>Путь сайта <span class="grad">в ответы нейросетей</span></h2>
+      <div class="flow">
+        <div class="step"><div class="n">1</div><h4>AI-краулер</h4><p>GPTBot / ClaudeBot читают сайт и llms.txt</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">2</div><h4>Понимание</h4><p>Извлекают факты из FAQ и Schema.org</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step"><div class="n">3</div><h4>Запрос юзера</h4><p>«Как поступить в вуз Китая?»</p></div>
+        <div class="arrow">&rsaquo;</div>
+        <div class="step fix"><div class="n">4</div><h4>Цитата</h4><p>ИИ упоминает EduBridge в ответе</p></div>
+      </div>
+      <p class="lead" style="margin-top:26px">Чёткие факты + llms.txt + открытый доступ = выше шанс попасть в ответ ChatGPT, Claude и Perplexity.</p>
+    </div>
+  </section>
+
+  <!-- 11 Infra / deploy -->
+  <section class="slide">
+    <div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Инфраструктура</span>
+      <h2>Надёжный <span class="grad">автодеплой</span></h2>
+      <div class="grid g3c">
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-9-9"/><path d="M21 3v6h-6"/></svg></span>CI/CD</h3><p>GitHub Actions: push → авто-сборка и деплой на сервер с миграциями БД.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg></span>Docker</h3><p>Frontend, backend, БД и хранилище — в изолированных контейнерах.</p></div>
+        <div class="card"><h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>Фикс сборки</h3><p>Сборка падала по нехватке памяти — добавили swap, деплой стабилизирован.</p></div>
+      </div>
+      <p class="lead" style="margin-top:24px">Теперь каждое улучшение SEO/GEO выкатывается автоматически и без сбоев.</p>
+    </div>
+  </section>
+
+  <!-- 12 Result -->
+  <section class="slide">
+    <div class="glow g1"></div><div class="glow g2"></div>
+    <div class="inner">
+      <span class="kicker">Итог</span>
+      <h2>Сайт снова <span class="grad">виден поиску и ИИ</span></h2>
+      <div class="stat">
+        <div><div class="v grad">200 OK</div><div class="l">контент для роботов вместо редиректа</div></div>
+        <div><div class="v grad">4 типа</div><div class="l">Schema.org разметки на страницах</div></div>
+        <div><div class="v grad">9+ AI-ботов</div><div class="l">допущены к индексации</div></div>
+      </div>
+      <ul class="checks" style="margin-top:30px">
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Причина провала индексации устранена, контент отдаётся поисковику.</div></li>
+        <li><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><div>Заложен фундамент SEO + GEO: разметка, FAQ, llms.txt, sitemap, robots.</div></li>
+      </ul>
+      <div class="author">
+        <div class="ava">АМ</div>
+        <div><div class="nm">Абубакир Махамаджанов</div><div class="rl">Спасибо за внимание · EduBridge</div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="counter"><span id="cur">1</span> / <span id="total">12</span></div>
+<div class="hint">Листайте стрелками &larr; &rarr; или пробелом</div>
+<div class="nav">
+  <button class="btn" id="prev" aria-label="Назад">&lsaquo;</button>
+  <button class="btn" id="next" aria-label="Вперёд">&rsaquo;</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0; const total=slides.length;
+  document.getElementById('total').textContent=total;
+  function show(n){
+    i=Math.max(0,Math.min(total-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('cur').textContent=i+1;
+    document.getElementById('bar').style.width=((i+1)/total*100)+'%';
+  }
+  document.getElementById('next').onclick=()=>show(i+1);
+  document.getElementById('prev').onclick=()=>show(i-1);
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();show(i+1)}
+    if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();show(i-1)}
+    if(e.key==='Home')show(0); if(e.key==='End')show(total-1);
+  });
+  // свайпы на телефоне
+  let x0=null; addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)show(i+(dx<0?1:-1));x0=null;},{passive:true});
+  show(0);
+</script>
+</body>
+</html>
