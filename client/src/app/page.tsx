@@ -49,6 +49,7 @@ const navLinks = [
   { label: "Что входит", href: "#services" },
   { label: "Кейсы", href: "#cases" },
   { label: "Блог", href: "/blog" },
+  { label: "FAQ", href: "#faq" },
   { label: "Контакты", href: "#contact" },
 ];
 
@@ -159,6 +160,33 @@ const countries = [
   { code: "cn", name: "Китай" },
   { code: "tr", name: "Турция" },
   { code: "us", name: "США" },
+];
+
+const faqs = [
+  {
+    q: "Сколько стоит поступление за границу с EduBridge?",
+    a: "Первая консультация бесплатная. Стоимость сопровождения зависит от страны и пакета услуг; мы работаем без скрытых комиссий и называем цену сразу после подбора вузов под ваш профиль.",
+  },
+  {
+    q: "В какие страны можно поступить через EduBridge?",
+    a: "Помогаем поступить в университеты Китая, Италии, Турции, США и других стран. Подбираем вуз и программу под ваши цели, бюджет и уровень подготовки.",
+  },
+  {
+    q: "Нужно ли знать язык и сдавать IELTS, TOEFL или HSK?",
+    a: "Зависит от программы. Для англоязычных программ обычно нужен IELTS 5.5–6.5 или TOEFL, для обучения на китайском — HSK 4–5. Многие вузы предлагают подготовительный языковой год, и мы помогаем подготовиться к тестам.",
+  },
+  {
+    q: "Можно ли поступить на грант или со стипендией?",
+    a: "Да. Мы подбираем университеты с грантами и стипендиями и сопровождаем подачу документов, чтобы повысить шансы на финансирование обучения.",
+  },
+  {
+    q: "Сколько времени занимает процесс поступления?",
+    a: "В среднем от 1 до 6 месяцев в зависимости от страны, программы и сроков подачи. Личный кабинет показывает все этапы и дедлайны, чтобы ничего не пропустить.",
+  },
+  {
+    q: "Из каких стран вы принимаете студентов?",
+    a: "Работаем со студентами из Кыргызстана, Казахстана и России. С 2021 года с нами начали обучение более 3000 студентов.",
+  },
 ];
 
 const leadSchema = z.object({
@@ -274,6 +302,15 @@ export default function LandingPage() {
         name: "EduBridge University",
         publisher: { "@id": "https://university.edubridge.bond/#organization" },
         inLanguage: "ru",
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://university.edubridge.bond/#faq",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
       },
     ],
   };
@@ -907,6 +944,36 @@ export default function LandingPage() {
             </div>
           </section>
         )}
+
+        {/* ── FAQ (для SEO rich-snippets и GEO) ── */}
+        <section id="faq" className="py-20 bg-slate-50/60">
+          <div className="mx-auto max-w-3xl px-4">
+            <motion.div {...fadeUp()} className="text-center mb-10">
+              <span className="text-primary font-semibold text-sm uppercase tracking-wide">
+                Вопросы и ответы
+              </span>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-text-primary">
+                Частые вопросы о поступлении за границу
+              </h2>
+            </motion.div>
+
+            <div className="space-y-3">
+              {faqs.map((f, i) => (
+                <motion.details
+                  key={i}
+                  {...fadeUp(i * 0.05)}
+                  className="group rounded-card border border-slate-100 bg-white p-5 shadow-card"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-4 font-semibold text-text-primary list-none">
+                    {f.q}
+                    <ChevronDown className="h-5 w-5 flex-shrink-0 text-primary transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-3 text-text-secondary leading-relaxed">{f.a}</p>
+                </motion.details>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* ── CTA (navy-градиентный блок) ── */}
         <section className="px-4 py-20">
