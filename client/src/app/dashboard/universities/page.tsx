@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, Coins, MapPin, Play, Calendar, CheckCircle2, BedDouble, Languages, Wallet, Award, X } from 'lucide-react'
+import { Search, Heart, Star, AlertCircle, ChevronRight, GraduationCap, Coins, MapPin, Play, Calendar, CheckCircle2, BedDouble, Languages, Wallet, Award, X, SlidersHorizontal, Check } from 'lucide-react'
 import { formatCost } from '@/lib/currency'
 import { useAuthStore } from '@/lib/store/authStore'
 import { apiGetUniversities, apiMatchUniversities, getUniversityPhotoUrl } from '@/lib/api/universities'
@@ -58,6 +58,69 @@ const DIFFICULTY_STYLE: Record<string, string> = {
   'Сложно': 'bg-red-50 text-red-700',
 }
 
+// ── Фильтры подбора ──
+const DIFFICULTIES = ['Легко', 'Средний', 'Сложно'] as const
+const LEVELS: { key: string; label: string }[] = [
+  { key: 'bachelor', label: 'Бакалавриат' },
+  { key: 'master', label: 'Магистратура' },
+  { key: 'language', label: 'Языковой год' },
+]
+
+interface UniFilters {
+  country: string
+  maxCost: number | null
+  difficulties: string[]
+  levels: string[]
+  langYear: boolean
+  specialty: string
+}
+
+const EMPTY_FILTERS: UniFilters = {
+  country: '', maxCost: null, difficulties: [], levels: [], langYear: false, specialty: '',
+}
+
+function offersLevel(u: University, level: string): boolean {
+  if (level === 'bachelor') return !!(u.programs_bachelor_chinese?.length || u.programs_bachelor_english?.length)
+  if (level === 'master') return !!(u.programs_masters_chinese?.length || u.programs_masters_english?.length)
+  if (level === 'language') return !!u.has_language_year
+  return true
+}
+
+function countActiveFilters(f: UniFilters): number {
+  return (f.country ? 1 : 0) + (f.maxCost != null ? 1 : 0) + (f.difficulties.length ? 1 : 0)
+    + (f.levels.length ? 1 : 0) + (f.langYear ? 1 : 0) + (f.specialty.trim() ? 1 : 0)
+}
+
+function applyFilters(list: University[], f: UniFilters): University[] {
+  const spec = f.specialty.trim().toLowerCase()
+  return list.filter((u) => {
+    if (f.country && u.country !== f.country) return false
+    if (f.maxCost != null) {
+      const cost = u.cost ?? u.tuition_fee
+      if (cost != null && cost > f.maxCost) return false
+    }
+    if (f.difficulties.length && !f.difficulties.includes(u.difficulty ?? '')) return false
+    if (f.levels.length && !f.levels.some((l) => offersLevel(u, l))) return false
+    if (f.langYear && !u.has_language_year) return false
+    if (spec) {
+      const specs = Array.isArray(u.specialties) ? u.specialties : u.specialties ? [u.specialties] : []
+      if (!specs.some((s) => String(s).toLowerCase().includes(spec))) return false
+    }
+    return true
+  })
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 py-1 pl-3 pr-1.5 text-xs font-medium text-primary">
+      {label}
+      <button onClick={onClear} aria-label="Убрать фильтр" className="rounded-full p-0.5 hover:bg-primary/20">
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  )
+}
+
 function UniCard({
   uni,
   isFav,
@@ -84,6 +147,13 @@ function UniCard({
   const score = uni.match_score
   const reasons = uni.match_reasons ?? []
   const gaps = uni.match_gaps ?? []
+
+  // Уровни обучения, которые реально есть у вуза (для бейджей на карточке)
+  const levels = [
+    (uni.programs_bachelor_chinese?.length || uni.programs_bachelor_english?.length) ? 'Бакалавриат' : null,
+    (uni.programs_masters_chinese?.length || uni.programs_masters_english?.length) ? 'Магистратура' : null,
+    uni.has_language_year ? 'Языковой год' : null,
+  ].filter(Boolean) as string[]
 
   return (
     <div
@@ -174,6 +244,15 @@ function UniCard({
           )}
         </div>
 
+        {/* Доступные уровни обучения */}
+        {levels.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {levels.map((l) => (
+              <span key={l} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{l}</span>
+            ))}
+          </div>
+        )}
+
         {/* Причины совпадения + чего не хватает (в режиме подбора) */}
         {matched && (reasons.length > 0 || gaps.length > 0) ? (
           <div className="flex flex-col gap-1">
@@ -226,14 +305,16 @@ export default function UniversitiesPage() {
   const router = useRouter()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
-  const [country, setCountry] = useState('')
   const [selected, setSelected] = useState<University | null>(null)
   const [showMatched, setShowMatched] = useState(false)
   const [page, setPage] = useState(1)
+  const [filters, setFilters] = useState<UniFilters>(EMPTY_FILTERS)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draft, setDraft] = useState<UniFilters>(EMPTY_FILTERS)
   const PER_PAGE = 9
 
   const params = Object.fromEntries(
-    Object.entries({ search, country }).filter(([, v]) => v)
+    Object.entries({ search }).filter(([, v]) => v)
   )
 
   const { data: universities, isLoading } = useQuery({
@@ -277,13 +358,19 @@ export default function UniversitiesPage() {
     },
   })
 
+  // Опции для модалки фильтров (берём из загруженного списка — без лишних запросов)
+  const baseList = universities ?? []
+  const countryOptions = Array.from(new Set(baseList.map((u) => u.country).filter(Boolean))).sort()
+  const maxCostAll = baseList.reduce((m, u) => Math.max(m, u.cost ?? u.tuition_fee ?? 0), 0)
+  const activeFilters = countActiveFilters(filters)
+
   // «Все»: клиентская пагинация. «Подбор»: группировка по тирам (без пагинации).
-  const allList = universities ?? []
+  const allList = applyFilters(baseList, filters)
   const totalPages = Math.max(1, Math.ceil(allList.length / PER_PAGE))
   const safePage = Math.min(page, totalPages)
   const pageItems = allList.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE)
 
-  const matchedList = matched ?? []
+  const matchedList = applyFilters(matched ?? [], filters)
   const tierGroups: { key: MatchTier; title: string; desc: string; items: University[] }[] = [
     { key: 'gold', title: '🥇 Идеальный выбор', desc: 'Лучший баланс шансов и качества', items: matchedList.filter((u) => u.match_tier === 'gold') },
     { key: 'silver', title: '🥈 Отличные варианты', desc: 'Хорошо подходят под ваш профиль', items: matchedList.filter((u) => u.match_tier === 'silver') },
@@ -308,7 +395,16 @@ export default function UniversitiesPage() {
   )
 
   // Сброс на 1-ю страницу при смене фильтров/режима
-  useEffect(() => { setPage(1) }, [search, country, showMatched])
+  useEffect(() => { setPage(1) }, [search, filters, showMatched])
+
+  const openFilters = () => { setDraft(filters); setFiltersOpen(true) }
+  const applyDraft = () => { setFilters(draft); setFiltersOpen(false) }
+  const resetFilters = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS); setFiltersOpen(false) }
+  const toggleInArray = (key: 'difficulties' | 'levels', value: string) =>
+    setDraft((d) => ({
+      ...d,
+      [key]: d[key].includes(value) ? d[key].filter((v) => v !== value) : [...d[key], value],
+    }))
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -341,13 +437,51 @@ export default function UniversitiesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Input
-          placeholder="Страна"
-          className="w-40"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-        />
+        <button
+          onClick={openFilters}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+            activeFilters > 0
+              ? 'border-primary bg-primary/5 text-primary'
+              : 'border-slate-200 bg-white text-text-secondary hover:bg-slate-50',
+          )}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Фильтры
+          {activeFilters > 0 && (
+            <span className="ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white">
+              {activeFilters}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Активные фильтры — чипы со сбросом */}
+      {activeFilters > 0 && (
+        <div className="-mt-3 flex flex-wrap items-center gap-2">
+          {filters.country && (
+            <FilterChip label={filters.country} onClear={() => setFilters((f) => ({ ...f, country: '' }))} />
+          )}
+          {filters.maxCost != null && (
+            <FilterChip label={`до ${formatCost(filters.maxCost, filters.country || baseList[0]?.country || 'China')}/год`} onClear={() => setFilters((f) => ({ ...f, maxCost: null }))} />
+          )}
+          {filters.difficulties.map((d) => (
+            <FilterChip key={d} label={d} onClear={() => setFilters((f) => ({ ...f, difficulties: f.difficulties.filter((x) => x !== d) }))} />
+          ))}
+          {filters.levels.map((l) => (
+            <FilterChip key={l} label={LEVELS.find((x) => x.key === l)?.label ?? l} onClear={() => setFilters((f) => ({ ...f, levels: f.levels.filter((x) => x !== l) }))} />
+          ))}
+          {filters.langYear && (
+            <FilterChip label="Языковой год" onClear={() => setFilters((f) => ({ ...f, langYear: false }))} />
+          )}
+          {filters.specialty.trim() && (
+            <FilterChip label={`«${filters.specialty.trim()}»`} onClear={() => setFilters((f) => ({ ...f, specialty: '' }))} />
+          )}
+          <button onClick={() => setFilters(EMPTY_FILTERS)} className="text-xs font-medium text-text-muted underline hover:text-text-secondary">
+            Сбросить всё
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -459,6 +593,22 @@ export default function UniversitiesPage() {
             { label: 'Взнос за подачу', value: selected.application_fee, icon: Wallet },
           ].filter((t) => t.value)
 
+          // Программы по уровням — показываем только те, что реально есть у вуза
+          const programLevels = [
+            {
+              label: 'Бакалавриат',
+              icon: GraduationCap,
+              chinese: selected.programs_bachelor_chinese ?? [],
+              english: selected.programs_bachelor_english ?? [],
+            },
+            {
+              label: 'Магистратура',
+              icon: Award,
+              chinese: selected.programs_masters_chinese ?? [],
+              english: selected.programs_masters_english ?? [],
+            },
+          ].filter((l) => l.chinese.length > 0 || l.english.length > 0)
+
           return (
             <div className="space-y-5">
               {/* Hero */}
@@ -529,7 +679,7 @@ export default function UniversitiesPage() {
                 <p className="text-sm leading-relaxed text-text-primary">{selected.description}</p>
               )}
 
-              {/* Специальности */}
+              {/* Специальности (краткая сводка) */}
               {specs.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">Специальности</p>
@@ -537,6 +687,54 @@ export default function UniversitiesPage() {
                     {specs.map((s, i) => (
                       <span key={i} className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{s}</span>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Программы обучения по уровням — только те, что есть у этого вуза */}
+              {(programLevels.length > 0 || selected.has_language_year) && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">Программы обучения</p>
+                  <div className="space-y-2.5">
+                    {programLevels.map(({ label, icon: Icon, chinese, english }) => (
+                      <div key={label} className="rounded-xl border border-slate-100 p-3">
+                        <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-text-primary">
+                          <Icon className="h-4 w-4 text-primary" /> {label}
+                          <span className="ml-auto text-[11px] font-normal text-text-muted">{chinese.length + english.length} прогр.</span>
+                        </div>
+                        {chinese.length > 0 && (
+                          <div className="mb-2">
+                            <p className="mb-1 text-[11px] font-medium text-text-muted">На китайском</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {chinese.map((p, i) => (
+                                <span key={i} className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">{p}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {english.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-[11px] font-medium text-text-muted">На английском</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {english.map((p, i) => (
+                                <span key={i} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{p}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {selected.has_language_year && (
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
+                        <Languages className="h-4 w-4 flex-shrink-0 text-primary" />
+                        <div>
+                          <p className="text-sm font-semibold text-text-primary">Языковой год</p>
+                          <p className="text-xs text-text-muted">
+                            Подготовительный курс китайского{selected.tuition_language_year ? ` · ${selected.tuition_language_year}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -605,6 +803,128 @@ export default function UniversitiesPage() {
             </div>
           )
         })()}
+      </Modal>
+
+      {/* Модалка фильтров */}
+      <Modal open={filtersOpen} onClose={() => setFiltersOpen(false)} maxWidth="max-w-md">
+        <div className="space-y-5">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold text-text-primary">Фильтры подбора</h2>
+          </div>
+
+          {/* Страна */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-muted">Страна</label>
+            <select
+              value={draft.country}
+              onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value }))}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+            >
+              <option value="">Любая</option>
+              {countryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Цена */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-text-muted">Стоимость в год</label>
+              <span className="text-xs font-semibold text-primary">
+                {draft.maxCost != null
+                  ? `до ${formatCost(draft.maxCost, draft.country || baseList[0]?.country || 'China')}`
+                  : 'любая'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={maxCostAll || 100000}
+              step={1000}
+              value={draft.maxCost ?? (maxCostAll || 100000)}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                setDraft((d) => ({ ...d, maxCost: v >= (maxCostAll || 100000) ? null : v }))
+              }}
+              className="w-full accent-primary"
+            />
+            <div className="mt-0.5 flex justify-between text-[10px] text-text-muted">
+              <span>0</span>
+              <span>{formatCost(maxCostAll || 100000, baseList[0]?.country || 'China')}+</span>
+            </div>
+          </div>
+
+          {/* Сложность */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted">Сложность поступления</label>
+            <div className="flex flex-wrap gap-2">
+              {DIFFICULTIES.map((d) => {
+                const on = draft.difficulties.includes(d)
+                return (
+                  <button
+                    key={d}
+                    onClick={() => toggleInArray('difficulties', d)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                      on ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-text-secondary hover:bg-slate-50',
+                    )}
+                  >
+                    {on && <Check className="h-3.5 w-3.5" />}{d}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Уровень программы */}
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted">Уровень программы</label>
+            <div className="flex flex-wrap gap-2">
+              {LEVELS.map((l) => {
+                const on = draft.levels.includes(l.key)
+                return (
+                  <button
+                    key={l.key}
+                    onClick={() => toggleInArray('levels', l.key)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                      on ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-text-secondary hover:bg-slate-50',
+                    )}
+                  >
+                    {on && <Check className="h-3.5 w-3.5" />}{l.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Специальность */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-muted">Специальность</label>
+            <Input
+              placeholder="напр. компьютерные науки"
+              value={draft.specialty}
+              onChange={(e) => setDraft((d) => ({ ...d, specialty: e.target.value }))}
+            />
+          </div>
+
+          {/* Языковой год */}
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={draft.langYear}
+              onChange={(e) => setDraft((d) => ({ ...d, langYear: e.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 accent-primary"
+            />
+            <span className="text-sm text-text-primary">Только с языковым годом</span>
+          </label>
+
+          {/* Действия */}
+          <div className="flex gap-2 border-t border-slate-100 pt-4">
+            <Button variant="outline" className="flex-1" onClick={resetFilters}>Сбросить</Button>
+            <Button className="flex-1" onClick={applyDraft}>Показать результаты</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
