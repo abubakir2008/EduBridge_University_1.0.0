@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { GraduationCap, ArrowLeft, ArrowRight, Calendar } from 'lucide-react'
+import { GraduationCap, ArrowLeft, Calendar } from 'lucide-react'
+import { BlogLeadForm } from '@/components/ui/BlogLeadForm'
 import { fetchPostBySlug, fetchCategories } from '@/lib/serverPosts'
 import { getPostCoverUrl } from '@/lib/api/posts'
 import { CategoryIcon } from '@/lib/categoryIcons'
@@ -129,15 +130,8 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
           </section>
         )}
 
-        {/* CTA */}
-        <div className="gradient-brand mt-12 rounded-3xl p-8 text-center text-white">
-          <h2 className="text-2xl font-extrabold">Готов поступать за границу?</h2>
-          <p className="mt-2 text-white/70">Оставь заявку — подберём вузы под твой профиль и проведём за руку до зачисления.</p>
-          <Link href="/#contact"
-            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white px-7 py-3.5 font-bold text-navy transition-all hover:bg-slate-100">
-            Оставить заявку <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+        {/* Форма заявки прямо в статье */}
+        <BlogLeadForm source={post.title} />
       </article>
     </div>
   )
