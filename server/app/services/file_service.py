@@ -38,6 +38,16 @@ _MAGIC: list[tuple[int, bytes, str]] = [
     (8, b'WAVE',              'audio/wav'),
 ]
 
+# Максимальный размер загрузки на bucket (защита от DoS / переполнения памяти).
+# documents — только PDF/фото/DOCX; остальные buckets допускают видео.
+_DEFAULT_MAX_SIZE = 25 * 1024 * 1024  # 25 МБ
+_BUCKET_MAX_SIZE: dict[str, int] = {
+    'documents': 25 * 1024 * 1024,     # 25 МБ
+    'lessons': 500 * 1024 * 1024,      # 500 МБ — видео уроков
+    'universities': 500 * 1024 * 1024,  # 500 МБ — промо-видео вузов
+    'media': 500 * 1024 * 1024,        # 500 МБ
+}
+
 # Allowed MIME types per bucket
 _BUCKET_ALLOWED: dict[str, set[str]] = {
     'documents': {
@@ -136,6 +146,17 @@ def upload_file(
 ) -> File:
     if bucket not in MINIO_BUCKETS:
         raise HTTPException(400, f"Invalid bucket. Allowed: {MINIO_BUCKETS}")
+
+    # Проверяем размер ДО чтения файла в память (иначе read() = DoS-вектор).
+    max_size = _BUCKET_MAX_SIZE.get(bucket, _DEFAULT_MAX_SIZE)
+    upload.file.seek(0, 2)  # в конец
+    size = upload.file.tell()
+    upload.file.seek(0)
+    if size > max_size:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"Файл слишком большой (максимум {max_size // (1024 * 1024)} МБ)",
+        )
 
     data = upload.file.read()
     upload.file.seek(0)

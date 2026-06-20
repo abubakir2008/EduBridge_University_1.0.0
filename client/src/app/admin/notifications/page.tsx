@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/utils'
+import { sanitizeHtml } from '@/lib/sanitize'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -87,7 +88,7 @@ export default function AdminNotificationsPage() {
                       : <span className="text-text-muted">{n.user_id.slice(0, 8)}…</span>}
                   </td>
                   <td className="px-4 py-3 text-text-secondary">{typeLabels[n.type] ?? n.type}</td>
-                  <td className="px-4 py-3 text-text-primary max-w-xs truncate" dangerouslySetInnerHTML={{ __html: n.message }} />
+                  <td className="px-4 py-3 text-text-primary max-w-xs truncate" dangerouslySetInnerHTML={{ __html: sanitizeHtml(n.message) }} />
                   <td className="px-4 py-3 text-text-muted">{n.channel}</td>
                   <td className="px-4 py-3 text-text-muted">{formatDate(n.sent_at)}</td>
                 </tr>

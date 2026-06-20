@@ -6,6 +6,7 @@ import { BlogLeadForm } from '@/components/ui/BlogLeadForm'
 import { fetchPostBySlug, fetchCategories } from '@/lib/serverPosts'
 import { getPostCoverUrl } from '@/lib/api/posts'
 import { CategoryIcon } from '@/lib/categoryIcons'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 const SITE = 'https://university.edubridge.bond'
 
@@ -109,7 +110,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
         )}
 
         {post.content && (
-          <div className="article-body mt-6" dangerouslySetInnerHTML={{ __html: post.content }} />
+          <div className="article-body mt-6" dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }} />
         )}
 
         {/* FAQ-блок (виден читателю + FAQPage-разметка для Google/ИИ) */}

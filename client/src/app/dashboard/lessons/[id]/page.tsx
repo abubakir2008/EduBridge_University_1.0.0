@@ -11,6 +11,7 @@ import { apiMarkLessonViewed } from '@/lib/api/training'
 import { getFileContentUrl } from '@/lib/api/files'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBarashekStore } from '@/lib/store/barashekStore'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 const pageVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -302,7 +303,7 @@ export default function LessonPage({ params }: { params: { id: string } }) {
                   [&_strong]:font-semibold [&_strong]:text-text-primary
                   [&_em]:italic [&_u]:underline
                   [&_blockquote]:border-l-4 [&_blockquote]:border-primary/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-muted"
-                dangerouslySetInnerHTML={{ __html: lesson.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.content) }}
               />
             ) : (
               <div className="space-y-1">{renderContent(lesson.content)}</div>

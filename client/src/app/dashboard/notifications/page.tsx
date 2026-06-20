@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 const typeLabels: Record<string, string> = {
   account_created: '👤 Аккаунт создан',
@@ -64,7 +65,7 @@ export default function NotificationsPage() {
             <div className="flex-1 min-w-0">
               <p
                 className={cn('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}
-                dangerouslySetInnerHTML={{ __html: n.message }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(n.message) }}
               />
               <p className="mt-1 text-xs text-text-muted">{formatDate(n.sent_at)}</p>
             </div>
