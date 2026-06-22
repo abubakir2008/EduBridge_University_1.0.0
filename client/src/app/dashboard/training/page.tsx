@@ -243,18 +243,25 @@ export default function TrainingPage() {
         await completeMutation.mutateAsync({ reqId, fileId: uploaded.id })
         say({
           variant: 'celebrate',
-          title: 'Документ принят! ✅',
-          text: `${res.verdict || 'Всё на месте.'}${res.detected_type ? `\nРаспознал: ${res.detected_type}.` : ''} Ты молодец! 💚`,
+          title: 'Принято! ✅',
+          text: 'Документ подходит — молодец! 💚',
         })
-      } else {
-        // Документ НЕ подходит — НЕ засчитываем требование, объясняем почему
-        const points = (res.reasons?.length ? res.reasons : res.issues ?? [])
-          .slice(0, 4).map((p) => `• ${p}`).join('\n')
+      } else if (res.type_match === false) {
+        // Не тот тип документа — коротко и по делу, как учитель
         say({
           variant: 'remind',
           mood: 'talking',
-          title: 'Документ пока не подходит 🐑',
-          text: `${res.verdict || 'Тут есть нестыковка.'}${res.detected_type ? `\nЯ распознал это как: ${res.detected_type}.` : ''}\n${points || '• проверь содержимое'}\nОткрой файл ниже, проверь и загрузи правильный — я в тебя верю! 💚`,
+          title: 'Это не тот документ 🐑',
+          text: `Нужен «${reqName}»${res.detected_type ? `, а ты загрузил «${res.detected_type}»` : ''}. Загрузи правильный 💚`,
+        })
+      } else {
+        // Тип верный, но есть замечание — одна короткая причина
+        const reason = (res.reasons?.[0] ?? res.issues?.[0] ?? res.verdict ?? '').trim()
+        say({
+          variant: 'remind',
+          mood: 'talking',
+          title: 'Почти! Поправь 🐑',
+          text: `${reason || 'Нужно поправить документ'}. Загрузи заново 💚`,
         })
       }
     } catch {
