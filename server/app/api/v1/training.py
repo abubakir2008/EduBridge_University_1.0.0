@@ -170,6 +170,20 @@ def complete_requirement(
     return {"message": "Требование выполнено"}
 
 
+@router.delete("/{user_id}/requirements/{requirement_id}", status_code=204)
+def clear_requirement(
+    user_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Убрать документ / снять отметку выполнения требования (для замены/удаления)."""
+    if current_user.role != UserRole.admin and current_user.id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Доступ запрещён")
+    progress = training_service.get_progress_or_404(db, user_id)
+    training_service.clear_requirement(db, progress, requirement_id)
+
+
 @router.post("/{user_id}/stage/next", response_model=StudentProgressResponse)
 def next_stage(
     user_id: uuid.UUID,

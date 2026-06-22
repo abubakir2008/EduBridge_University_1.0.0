@@ -16,6 +16,9 @@ export const apiCompleteRequirement = (
     .patch(`/training/${userId}/requirements/${requirementId}`, { file_id: fileId })
     .then((r) => r.data)
 
+export const apiClearRequirement = (userId: string, requirementId: string) =>
+  client.delete(`/training/${userId}/requirements/${requirementId}`).then((r) => r.data)
+
 export const apiAdvanceStage = (userId: string) =>
   client.post<StudentProgress>(`/training/${userId}/stage/next`).then((r) => r.data)
 

@@ -92,6 +92,39 @@ def complete_requirement(
     return sr
 
 
+def clear_requirement(
+    db: Session,
+    progress: StudentProgress,
+    requirement_id: uuid.UUID,
+) -> StudentRequirement:
+    """Снять отметку выполнения требования и удалить привязанный документ.
+
+    Используется для «Убрать»/«Заменить» документ: возвращает требование в
+    невыполненное состояние и удаляет файл из хранилища, если он был."""
+    sr = db.query(StudentRequirement).filter(
+        StudentRequirement.student_progress_id == progress.id,
+        StudentRequirement.requirement_id == requirement_id,
+    ).first()
+    if not sr:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Требование не найдено в текущем прогрессе")
+
+    old_file_id = sr.file_id
+    sr.completed = False
+    sr.completed_at = None
+    sr.file_id = None
+    db.commit()
+
+    if old_file_id:
+        from app.models.file import File
+        from app.services import file_service
+        record = db.get(File, old_file_id)
+        if record:
+            file_service.delete_file(db, record)  # удаляет объект из MinIO + строку files
+
+    db.refresh(sr)
+    return sr
+
+
 def advance_stage(db: Session, user: User, progress: StudentProgress) -> StudentProgress:
     if not progress.current_stage_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нет активного этапа")

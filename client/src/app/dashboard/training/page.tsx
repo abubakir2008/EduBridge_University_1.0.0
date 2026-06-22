@@ -2,10 +2,10 @@
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy, RefreshCw, ExternalLink } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy, RefreshCw, ExternalLink, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useBarashekStore } from '@/lib/store/barashekStore'
-import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement, apiCancelTraining } from '@/lib/api/training'
+import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement, apiCancelTraining, apiClearRequirement } from '@/lib/api/training'
 import { apiUploadFile, getFileContentUrl } from '@/lib/api/files'
 import { apiAiCheckDocument } from '@/lib/api/ai'
 import { Card } from '@/components/ui/card'
@@ -134,6 +134,16 @@ export default function TrainingPage() {
     mutationFn: ({ reqId, fileId }: { reqId: string; fileId?: string }) =>
       apiCompleteRequirement(user!.id, reqId, fileId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['training'] }),
+  })
+
+  const clearMutation = useMutation({
+    mutationFn: (reqId: string) => apiClearRequirement(user!.id, reqId),
+    onSuccess: (_d, reqId) => {
+      qc.invalidateQueries({ queryKey: ['training'] })
+      setReqFiles((m) => { const c = { ...m }; delete c[reqId]; return c })
+      toast.success('Документ убран')
+    },
+    onError: () => toast.error('Не удалось убрать документ'),
   })
 
   const cancelMutation = useMutation({
@@ -457,8 +467,9 @@ export default function TrainingPage() {
                       <input
                         type="checkbox"
                         checked={sr.is_done}
-                        disabled={sr.is_done}
-                        onChange={() => completeMutation.mutate({ reqId: sr.requirement_id })}
+                        onChange={() => sr.is_done
+                          ? clearMutation.mutate(sr.requirement_id)
+                          : completeMutation.mutate({ reqId: sr.requirement_id })}
                         className="h-4 w-4 rounded accent-primary"
                       />
                     ) : (
@@ -484,23 +495,35 @@ export default function TrainingPage() {
                         <ExternalLink className="h-3.5 w-3.5" /> Посмотреть
                       </a>
                     )}
-                    {sr.requirement.type === 'file_upload' && !sr.is_done && (
+                    {/* Загрузить / Заменить документ (доступно и для зачтённых) */}
+                    {sr.requirement.type === 'file_upload' && (
                       <label className={cn(
                         'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border-2 border-primary/30 px-4 text-sm font-semibold text-primary transition-colors hover:border-primary/60 hover:bg-primary/5',
-                        uploading && 'pointer-events-none opacity-60'
+                        (uploading || clearMutation.isPending) && 'pointer-events-none opacity-60'
                       )}>
                         <input
                           type="file"
                           className="hidden"
-                          disabled={uploading}
+                          disabled={uploading || clearMutation.isPending}
                           onChange={(e) => {
                             const f = e.target.files?.[0]
                             if (f) handleFileUpload(sr.requirement_id, f, sr.requirement.name)
                             e.target.value = ''
                           }}
                         />
-                        {uploading ? 'Проверяю…' : (viewFileId ? 'Заменить' : 'Загрузить')}
+                        {uploading ? 'Проверяю…' : ((viewFileId || sr.is_done) ? 'Заменить' : 'Загрузить')}
                       </label>
+                    )}
+                    {/* Убрать документ / снять отметку */}
+                    {(sr.is_done || sr.file_id) && (
+                      <button
+                        onClick={() => clearMutation.mutate(sr.requirement_id)}
+                        disabled={clearMutation.isPending || uploading}
+                        title="Убрать документ"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-red-50 hover:text-error disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     )}
                   </div>
                   )
