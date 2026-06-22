@@ -12,7 +12,7 @@ class LanguageSkill(BaseModel):
 
 class UserCreate(BaseModel):
     full_name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     role: UserRole = UserRole.student
     date_of_birth: Optional[date] = None
@@ -63,7 +63,7 @@ class UserStatusUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: uuid.UUID
     full_name: str
-    email: str
+    email: Optional[str]
     phone: Optional[str]
     login: str
     role: UserRole

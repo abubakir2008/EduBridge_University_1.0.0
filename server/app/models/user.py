@@ -23,7 +23,9 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(255), nullable=False)
-    email = Column(String(255), unique=True, nullable=False)
+    # Заявки часто приходят только с телефоном (WhatsApp), без email — поэтому
+    # email необязателен. unique + nullable: Postgres допускает несколько NULL.
+    email = Column(String(255), unique=True, nullable=True)
     phone = Column(String(50), nullable=True)
     login = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)

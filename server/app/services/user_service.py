@@ -16,7 +16,9 @@ def get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
 
 
 def create_user(db: Session, data: UserCreate) -> tuple[User, str]:
-    if db.query(User).filter(User.email == data.email).first():
+    # Дубль проверяем только если email указан: для NULL `== None` поймал бы
+    # всех пользователей без email и ложно сообщил бы о конфликте.
+    if data.email and db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "Email уже используется")
 
     phone = data.phone or "0000"

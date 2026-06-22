@@ -196,12 +196,17 @@ export default function LeadsPage() {
   const handleApprove = async (lead: Lead) => {
     setCreatingId(lead.id)
     try {
-      const phone = lead.contact.split('/')[0].trim()
-      const creds = await apiCreateUser({ full_name: lead.name, phone })
+      const parts = lead.contact.split('/')
+      const phone = parts[0].trim()
+      // В contact email может идти второй частью («телефон / email») — передаём, если он есть
+      const email = parts[1]?.trim() || undefined
+      const creds = await apiCreateUser({ full_name: lead.name, phone, email })
       await updateStatus.mutateAsync({ id: lead.id, status: 'registered' })
       setCreatedCreds(creds)
-    } catch {
-      toast.error('Ошибка при создании аккаунта')
+    } catch (e: unknown) {
+      const detail =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Ошибка при создании аккаунта')
     } finally {
       setCreatingId(null)
     }
