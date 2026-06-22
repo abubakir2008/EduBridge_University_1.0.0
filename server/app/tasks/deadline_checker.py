@@ -3,6 +3,7 @@ from app.db.session import SessionLocal
 from app.models.student_progress import StudentProgress, ProgressStatus
 from app.models.stage import Stage
 from app.models.user import User
+from app.models.notification import Notification
 from app.models.student_stage_deadline import StudentStageDeadline
 from app.services import notification_service
 
@@ -36,9 +37,21 @@ def check_deadlines() -> None:
 
             delta = (student_dl.deadline - today).days
 
+            # Дедупликация: уведомление каждого типа по этапу шлём ОДИН раз
+            # (иначе ежедневный запуск спамит студента письмами каждый день).
+            sent_types = {
+                t[0] for t in db.query(Notification.type).filter(
+                    Notification.user_id == user.id,
+                    Notification.type.in_(["deadline_at_risk", "deadline_overdue"]),
+                    Notification.message.contains(stage.name),
+                ).all()
+            }
+
             if delta < 0:
-                notification_service.notify_deadline_overdue(db, user, stage.name)
+                if "deadline_overdue" not in sent_types:
+                    notification_service.notify_deadline_overdue(db, user, stage.name)
             elif delta <= 7:
-                notification_service.notify_deadline_at_risk(db, user, stage.name, delta)
+                if "deadline_at_risk" not in sent_types:
+                    notification_service.notify_deadline_at_risk(db, user, stage.name, delta)
     finally:
         db.close()

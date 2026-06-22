@@ -251,8 +251,10 @@ def match_universities(db: Session, user: User) -> list[MatchResult]:
         else:
             r.tier = "bronze"
 
-    # Гарантируем хотя бы один «золотой»
-    if scored and scored[0].tier != "gold":
+    # Гарантируем хотя бы один «золотой» — но только если лучший вариант реально
+    # годный (>= silver). Иначе слабый матч (напр. 30%) ложно подавался бы как
+    # «отличный выбор», вводя студента в заблуждение.
+    if scored and scored[0].score >= 50 and scored[0].tier != "gold":
         scored[0].tier = "gold"
 
     return scored

@@ -49,7 +49,7 @@ def create_university(db: Session, data: UniversityCreate) -> University:
 
 
 def update_university(db: Session, uni: University, data: UniversityUpdate) -> University:
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(uni, field, value)
     db.commit()
     db.refresh(uni)
@@ -87,7 +87,7 @@ def update_stage(db: Session, stage_id: uuid.UUID, data: StageUpdate) -> Stage:
     stage = db.get(Stage, stage_id)
     if not stage:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Этап не найден")
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(stage, field, value)
     db.commit()
     db.refresh(stage)

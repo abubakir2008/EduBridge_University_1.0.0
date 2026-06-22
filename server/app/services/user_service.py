@@ -45,7 +45,7 @@ def create_user(db: Session, data: UserCreate) -> tuple[User, str]:
 
 
 def update_user(db: Session, user: User, data: UserUpdate) -> User:
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
     db.commit()
     db.refresh(user)

@@ -54,6 +54,7 @@ def _build_progress_response(db: Session, progress) -> StudentProgressResponse:
         ds = training_service.get_deadline_status(
             stage,
             student_deadline=student_dl.deadline if student_dl else None,
+            started_at=progress.started_at,
         )
         dl_status_str = ds["status"] if ds else None
         days_left = ds.get("days_left") if ds else None

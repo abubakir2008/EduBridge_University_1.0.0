@@ -84,7 +84,7 @@ def update_lesson(
     lesson = db.get(Lesson, lesson_id)
     if not lesson:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Урок не найден")
-    for field, value in body.model_dump(exclude_none=True).items():
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(lesson, field, value)
     db.commit()
     db.refresh(lesson)

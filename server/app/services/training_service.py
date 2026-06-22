@@ -154,14 +154,19 @@ def advance_stage(db: Session, user: User, progress: StudentProgress) -> Student
     return progress
 
 
-def get_deadline_status(stage: Stage, student_deadline=None) -> dict | None:
+def get_deadline_status(stage: Stage, student_deadline=None, started_at=None) -> dict | None:
     # student_deadline — индивидуальная дата дедлайна студента (date объект)
+    today = date.today()
     if student_deadline:
-        today = date.today()
         delta = (student_deadline - today).days
     elif stage and stage.deadline_days is not None:
-        # Нет индивидуального — используем кол-во дней как ориентир (от создания прогресса)
-        return {"status": "on_track", "days_left": stage.deadline_days}
+        # Нет индивидуального дедлайна — отсчитываем deadline_days от старта прогресса.
+        # Без started_at вернуть статичное число нельзя (оно «зависает» и вводит в
+        # заблуждение), поэтому считаем реальный остаток от даты начала обучения.
+        if started_at is None:
+            return {"status": "on_track", "days_left": stage.deadline_days}
+        start_date = started_at.date() if hasattr(started_at, "date") else started_at
+        delta = stage.deadline_days - (today - start_date).days
     else:
         return None
     if delta < 0:

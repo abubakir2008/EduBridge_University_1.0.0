@@ -43,7 +43,7 @@ def update_case(
     case = db.get(Case, case_id)
     if not case:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Кейс не найден")
-    for field, value in body.model_dump(exclude_none=True).items():
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(case, field, value)
     db.commit()
     db.refresh(case)

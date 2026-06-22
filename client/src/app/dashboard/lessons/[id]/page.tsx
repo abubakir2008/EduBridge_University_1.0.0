@@ -80,12 +80,26 @@ export default function LessonPage({ params }: { params: { id: string } }) {
     }
   }
 
-  // Для текста/документа/картинки засчитываем просмотр автоматически через 4 сек.
-  // Для видео — по окончании (onEnded).
+  // Для текста/документа/картинки засчитываем просмотр после выдержки на странице.
+  // Для видео — по окончании (onEnded). Таймер идёт только пока вкладка активна
+  // (видима), иначе урок «фармился» бы открытием десятка фоновых вкладок.
   useEffect(() => {
     if (!lesson || lesson.content_type === 'video') return
-    const t = setTimeout(() => { void markViewed() }, 4000)
-    return () => clearTimeout(t)
+    const REQUIRED_MS = 15000
+    let elapsed = 0
+    let last = Date.now()
+    const tick = () => {
+      if (document.visibilityState === 'visible') {
+        elapsed += Date.now() - last
+      }
+      last = Date.now()
+      if (elapsed >= REQUIRED_MS) {
+        clearInterval(timer)
+        void markViewed()
+      }
+    }
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.id])
 
