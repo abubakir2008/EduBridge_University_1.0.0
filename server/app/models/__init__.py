@@ -19,6 +19,7 @@ from app.models.activity_log import ActivityLog
 from app.models.student_stage_deadline import StudentStageDeadline
 from app.models.post import Post, PostCategory, PostStatus
 from app.models.post_category import Category
+from app.models.document import Document, DocumentType, DocumentStatus
 
 __all__ = [
     "User", "UserRole", "AccountStatus",
@@ -42,4 +43,5 @@ __all__ = [
     "StudentStageDeadline",
     "Post", "PostCategory", "PostStatus",
     "Category",
+    "Document", "DocumentType", "DocumentStatus",
 ]

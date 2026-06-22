@@ -188,6 +188,17 @@ def upload_file(
     return file_record
 
 
+def get_file_bytes(file_record: File) -> bytes:
+    """Read the full stored object into memory (used for AI re-verification)."""
+    client = get_minio()
+    resp = client.get_object(file_record.bucket, file_record.object_key)
+    try:
+        return resp.read()
+    finally:
+        resp.close()
+        resp.release_conn()
+
+
 def _iter_minio(resp):
     """Yield object bytes and always release the underlying connection."""
     try:

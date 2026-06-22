@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BookOpen, Building2, Heart, Bell, User, LogOut, GraduationCap } from 'lucide-react'
+import { BookOpen, Building2, Heart, Bell, User, LogOut, GraduationCap, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useQuery } from '@tanstack/react-query'
@@ -10,6 +10,7 @@ import { apiGetNotifications } from '@/lib/api/notifications'
 const links = [
   { href: '/dashboard/training', label: 'Мой путь', shortLabel: 'Путь', icon: BookOpen },
   { href: '/dashboard/universities', label: 'Университеты', shortLabel: 'Вузы', icon: Building2 },
+  { href: '/dashboard/documents', label: 'Документы', shortLabel: 'Док-ты', icon: FileText },
   { href: '/dashboard/favourites', label: 'Избранное', shortLabel: 'Избранное', icon: Heart },
   { href: '/dashboard/notifications', label: 'Уведомления', shortLabel: 'Уведом.', icon: Bell },
   { href: '/dashboard/profile', label: 'Профиль', shortLabel: 'Профиль', icon: User },

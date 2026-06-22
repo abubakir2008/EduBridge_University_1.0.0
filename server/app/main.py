@@ -10,7 +10,7 @@ from app.core.limiter import limiter
 from app.core.config import settings
 import app.models  # noqa: F401
 
-from app.api.v1 import ai, auth, cases, categories, favourites, files, leads, lessons, notifications, posts, stages, training, universities, users
+from app.api.v1 import ai, auth, cases, categories, documents, favourites, files, leads, lessons, notifications, posts, stages, training, universities, users
 from app.api.v1.admin import dashboard, notifications as admin_notifications, reminders, activity_log
 from app.services.file_service import init_buckets
 from app.tasks.deadline_checker import check_deadlines
@@ -61,6 +61,7 @@ app.include_router(notifications.router, prefix=PREFIX)
 app.include_router(lessons.router, prefix=PREFIX)
 app.include_router(cases.router, prefix=PREFIX)
 app.include_router(files.router, prefix=PREFIX)
+app.include_router(documents.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
 app.include_router(admin_notifications.router, prefix=PREFIX)
 app.include_router(reminders.router, prefix=PREFIX)
