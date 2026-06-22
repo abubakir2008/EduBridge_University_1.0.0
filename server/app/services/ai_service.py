@@ -878,6 +878,150 @@ def check_document_file(content: bytes, mime: str = "", filename: str = "") -> d
     return check_document_image(content, mime or "image/jpeg")
 
 
+# ── Feature 3b: Проверка документа с учётом ЗАЯВЛЕННОГО типа ──────────────────
+# Студент указывает, что именно он загружает (паспорт / аттестат / диплом …),
+# а ИИ сверяет реальное содержимое файла с этим типом и решает, принять ли его.
+
+DOCUMENT_TYPE_LABELS: dict[str, str] = {
+    "passport": "Паспорт / удостоверение личности",
+    "certificate": "Аттестат о среднем образовании",
+    "diploma": "Диплом о высшем образовании",
+    "transcript": "Транскрипт (выписка с оценками)",
+    "language_certificate": "Языковой сертификат (IELTS / TOEFL / HSK)",
+    "motivation_letter": "Мотивационное письмо",
+    "recommendation": "Рекомендательное письмо",
+    "photo": "Фото на документы",
+    "medical": "Медицинская справка",
+    "other": "Прочий документ",
+}
+
+
+def _doc_meta_line(mime: str, filename: str, size: int | None) -> str:
+    parts = []
+    if filename:
+        parts.append(f"имя файла: {filename}")
+    if mime:
+        parts.append(f"формат (MIME): {mime}")
+    if size:
+        parts.append(f"размер: {size // 1024} КБ" if size >= 1024 else f"размер: {size} Б")
+    return "; ".join(parts) or "метаданные недоступны"
+
+
+def _verify_instruction(expected_label: str, meta: str) -> str:
+    return (
+        "Ты строгий проверяющий документов для поступления в зарубежные вузы. "
+        f"Студент УТВЕРЖДАЕТ, что это документ типа: «{expected_label}».\n"
+        f"Метаданные файла: {meta}.\n\n"
+        "Проверь РЕАЛЬНОЕ содержимое файла:\n"
+        "1) Определи фактический тип документа по тому, что видишь/читаешь.\n"
+        "2) Совпадает ли он с заявленным типом? Если загружен, например, аттестат "
+        "вместо паспорта — это НЕСООТВЕТСТВИЕ, принимать НЕЛЬЗЯ.\n"
+        "3) Документ читаемый (не размытый, не пустой, не обрезанный)?\n"
+        "4) Заполнены ли ключевые поля, характерные для этого типа документа?\n"
+        "НЕ одобряй документ только из-за факта загрузки. Одобряй ТОЛЬКО когда тип "
+        "совпадает И документ читаем И ключевые поля на месте. Причины — конкретные.\n\n"
+        "Ответь строго в формате JSON (без markdown):\n"
+        '{"detected_type": "фактический тип по содержимому", '
+        '"type_match": true/false, "readable": true/false, '
+        '"reasons": ["почему принят или отклонён — по пунктам"], '
+        '"issues": ["конкретные проблемы, если есть"], '
+        '"recommendations": ["что исправить"], '
+        '"verdict": "краткое заключение одной фразой"}'
+    )
+
+
+def _vision_complete(image_bytes: bytes, mime_type: str, instruction: str) -> str:
+    b64 = base64.standard_b64encode(image_bytes).decode()
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+            {"type": "text", "text": instruction},
+        ],
+    }]
+    return _complete(messages, model=VISION_MODEL)
+
+
+def _finalize_verdict(parsed: dict, expected_label: str) -> dict:
+    type_match = bool(parsed.get("type_match"))
+    readable = parsed.get("readable")
+    readable = True if readable is None else bool(readable)
+    issues = parsed.get("issues") or []
+    reasons = parsed.get("reasons") or []
+    detected = parsed.get("detected_type") or "Неизвестно"
+
+    # Одобряем ТОЛЬКО при совпадении типа, читаемости и отсутствии проблем.
+    ok = type_match and readable and len(issues) == 0
+
+    # Жёсткое правило: несоответствие типа = отклонение с явной причиной.
+    if not type_match:
+        msg = f"Тип не совпадает: ожидался «{expected_label}», распознано «{detected}»."
+        if msg not in reasons:
+            reasons = [msg] + reasons
+        ok = False
+    if not readable and "Документ нечитаемый или пустой" not in reasons:
+        reasons = reasons + ["Документ нечитаемый или пустой"]
+
+    return {
+        "ok": ok,
+        "status": "approved" if ok else "rejected",
+        "expected_type_label": expected_label,
+        "detected_type": detected,
+        "type_match": type_match,
+        "readable": readable,
+        "reasons": reasons,
+        "issues": issues,
+        "recommendations": parsed.get("recommendations") or [],
+        "verdict": parsed.get("verdict") or ("Документ принят" if ok else "Документ отклонён"),
+    }
+
+
+def verify_document(
+    content: bytes,
+    mime: str = "",
+    filename: str = "",
+    expected_type: str = "other",
+    file_size: int | None = None,
+) -> dict:
+    """Проверка документа с учётом ЗАЯВЛЕННОГО студентом типа.
+
+    Решение принимается на основе реальных данных: содержимого файла, его размера,
+    формата и метаданных. Возвращает вердикт (ok), статус, распознанный тип,
+    флаг совпадения типа и СПИСОК ПРИЧИН принятия/отклонения."""
+    label = DOCUMENT_TYPE_LABELS.get(expected_type, DOCUMENT_TYPE_LABELS["other"])
+    size = file_size if file_size is not None else len(content)
+    meta = _doc_meta_line(mime, filename, size)
+    instruction = _verify_instruction(label, meta)
+
+    low_mime = (mime or "").lower()
+    low_name = (filename or "").lower()
+
+    fallback = {
+        "detected_type": "Неизвестно", "type_match": False, "readable": False,
+        "reasons": ["Не удалось проанализировать документ"], "issues": [],
+        "recommendations": ["Загрузите более чёткий файл (JPG/PNG/PDF)"],
+        "verdict": "Не удалось проверить",
+    }
+
+    try:
+        if "pdf" in low_mime or low_name.endswith(".pdf"):
+            raw = _vision_complete(_pdf_to_png(content), "image/png", instruction)
+        elif "wordprocessingml" in low_mime or low_name.endswith(".docx"):
+            text = _docx_to_text(content)
+            raw = _complete([{"role": "user", "content": instruction + f"\n\nТекст документа:\n{text[:6000]}"}])
+        elif low_mime.startswith("text/") or low_name.endswith(".txt"):
+            text = content.decode("utf-8", errors="ignore")
+            raw = _complete([{"role": "user", "content": instruction + f"\n\nТекст документа:\n{text[:6000]}"}])
+        else:
+            raw = _vision_complete(content, mime or "image/jpeg", instruction)
+    except Exception:
+        logger.exception("verify_document failed")
+        return _finalize_verdict(fallback, label)
+
+    parsed = _parse_json(raw, fallback)
+    return _finalize_verdict(parsed, label)
+
+
 # ── Feature 4: Extract profile from document image ───────────────────────────
 
 def extract_profile_from_document(image_bytes: bytes, mime_type: str) -> dict:
