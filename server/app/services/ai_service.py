@@ -982,13 +982,18 @@ def verify_document(
     filename: str = "",
     expected_type: str = "other",
     file_size: int | None = None,
+    expected_label: str | None = None,
 ) -> dict:
-    """Проверка документа с учётом ЗАЯВЛЕННОГО студентом типа.
+    """Проверка документа с учётом ЗАЯВЛЕННОГО типа.
 
     Решение принимается на основе реальных данных: содержимого файла, его размера,
     формата и метаданных. Возвращает вердикт (ok), статус, распознанный тип,
-    флаг совпадения типа и СПИСОК ПРИЧИН принятия/отклонения."""
-    label = DOCUMENT_TYPE_LABELS.get(expected_type, DOCUMENT_TYPE_LABELS["other"])
+    флаг совпадения типа и СПИСОК ПРИЧИН принятия/отклонения.
+
+    `expected_label` — произвольное название ожидаемого документа (напр. название
+    требования этапа «Академическая справка с оценками»); если не задано — берётся
+    человекочитаемая метка по `expected_type`."""
+    label = expected_label or DOCUMENT_TYPE_LABELS.get(expected_type, DOCUMENT_TYPE_LABELS["other"])
     size = file_size if file_size is not None else len(content)
     meta = _doc_meta_line(mime, filename, size)
     instruction = _verify_instruction(label, meta)

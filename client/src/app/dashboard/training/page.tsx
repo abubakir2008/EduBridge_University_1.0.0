@@ -2,11 +2,11 @@
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, BookOpen, ChevronRight, ListChecks, Trophy, RefreshCw, ExternalLink } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useBarashekStore } from '@/lib/store/barashekStore'
 import { apiGetTraining, apiAdvanceStage, apiCompleteRequirement, apiCancelTraining } from '@/lib/api/training'
-import { apiUploadFile } from '@/lib/api/files'
+import { apiUploadFile, getFileContentUrl } from '@/lib/api/files'
 import { apiAiCheckDocument } from '@/lib/api/ai'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/modal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type StageReq = { is_done: boolean; requirement: { is_required: boolean } }
@@ -84,8 +84,9 @@ export default function TrainingPage() {
   const say = useBarashekStore((s) => s.say)
   const qc = useQueryClient()
   const [note, setNote] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null)
+  // Файлы, только что загруженные по требованиям (чтобы открыть/посмотреть даже до зачёта)
+  const [reqFiles, setReqFiles] = useState<Record<string, { id: string; name: string }>>({})
   const [showChangeModal, setShowChangeModal] = useState(false)
   const router = useRouter()
 
@@ -189,48 +190,61 @@ export default function TrainingPage() {
       ? 'text-warning'
       : 'text-success'
 
-  const handleFileUpload = async (reqId: string, file: File) => {
+  const handleFileUpload = async (reqId: string, file: File, reqName: string) => {
     setUploadingReqId(reqId)
     try {
       const uploaded = await apiUploadFile(file, 'documents')
-      await completeMutation.mutateAsync({ reqId, fileId: uploaded.id })
-      toast.success('Файл загружен')
+      // Запоминаем файл, чтобы студент мог открыть и посмотреть его (даже если не зачтён)
+      setReqFiles((m) => ({ ...m, [reqId]: { id: uploaded.id, name: file.name } }))
 
-      // Барашек честно (но мягко) проверяет документ — фото, PDF, DOCX, TXT
       const n = file.name.toLowerCase()
       const isCheckable = file.type.startsWith('image/') || file.type.startsWith('text/')
         || file.type === 'application/pdf' || file.type.includes('wordprocessingml')
         || n.endsWith('.pdf') || n.endsWith('.docx') || n.endsWith('.txt')
-      if (isCheckable) {
-        say({ variant: 'info', mood: 'thinking', title: 'Смотрю твой документ… 🐑', text: 'Секундочку, проверяю — хочу убедиться, что всё хорошо.' })
-        try {
-          const res = await apiAiCheckDocument(file)
-          if (res.ok && res.issues.length === 0) {
-            say({
-              variant: 'celebrate',
-              title: 'Документ отличный! ✅',
-              text: `${res.verdict || 'Всё на месте.'} Ты молодец, так держать! 💚`,
-            })
-          } else {
-            const points = [...res.issues, ...res.empty_fields.map((f) => `пустое поле: ${f}`)]
-              .slice(0, 4).map((p) => `• ${p}`).join('\n')
-            say({
-              variant: 'info',
-              mood: 'talking',
-              title: 'Глянул твой документ 🐑',
-              text: `${res.verdict || 'Почти отлично!'}\nДавай чуть подправим:\n${points || '• мелкие детали'}\nПоправишь — и будет супер, я в тебя верю! 💚`,
-            })
-          }
-        } catch {
-          say({
-            variant: 'info', mood: 'talking', title: 'Документ получен 🐑',
-            text: 'Я сохранил твой файл! Сейчас не получилось его разобрать, но ты молодец. Если хочешь, чтобы я честно проверил — загрузи фото (JPG/PNG) или PDF почётче.',
-          })
-        }
-      } else {
+
+      // Формат не распознаём ИИ — засчитываем загрузку как раньше (мягко)
+      if (!isCheckable) {
+        await completeMutation.mutateAsync({ reqId, fileId: uploaded.id })
         say({
           variant: 'info', mood: 'happy', title: 'Документ получен ✅',
           text: 'Файл сохранён! Я честно проверяю фото (JPG/PNG), PDF, DOCX и TXT — загрузи в таком формате, и я гляну, всё ли в порядке.',
+        })
+        return
+      }
+
+      say({ variant: 'info', mood: 'thinking', title: 'Смотрю твой документ… 🐑', text: 'Секундочку, сверяю с требованием — хочу убедиться, что всё хорошо.' })
+
+      let res: Awaited<ReturnType<typeof apiAiCheckDocument>> | null = null
+      try {
+        // Передаём название требования как ожидаемый тип — ИИ ловит несоответствие
+        res = await apiAiCheckDocument(file, reqName)
+      } catch {
+        // ИИ недоступен — не блокируем студента, засчитываем загрузку
+        await completeMutation.mutateAsync({ reqId, fileId: uploaded.id })
+        say({
+          variant: 'info', mood: 'talking', title: 'Документ получен 🐑',
+          text: 'Я сохранил твой файл! Сейчас не получилось его разобрать, но ты молодец.',
+        })
+        return
+      }
+
+      if (res.ok) {
+        // Документ подходит — теперь засчитываем требование
+        await completeMutation.mutateAsync({ reqId, fileId: uploaded.id })
+        say({
+          variant: 'celebrate',
+          title: 'Документ принят! ✅',
+          text: `${res.verdict || 'Всё на месте.'}${res.detected_type ? `\nРаспознал: ${res.detected_type}.` : ''} Ты молодец! 💚`,
+        })
+      } else {
+        // Документ НЕ подходит — НЕ засчитываем требование, объясняем почему
+        const points = (res.reasons?.length ? res.reasons : res.issues ?? [])
+          .slice(0, 4).map((p) => `• ${p}`).join('\n')
+        say({
+          variant: 'remind',
+          mood: 'talking',
+          title: 'Документ пока не подходит 🐑',
+          text: `${res.verdict || 'Тут есть нестыковка.'}${res.detected_type ? `\nЯ распознал это как: ${res.detected_type}.` : ''}\n${points || '• проверь содержимое'}\nОткрой файл ниже, проверь и загрузи правильный — я в тебя верю! 💚`,
         })
       }
     } catch {
@@ -428,7 +442,10 @@ export default function TrainingPage() {
             <div className="mb-6" data-tour="tour-requirement">
               <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">Требования</h3>
               <div className="space-y-3">
-                {stage.requirements.map((sr) => (
+                {stage.requirements.map((sr) => {
+                  const viewFileId = reqFiles[sr.requirement_id]?.id ?? sr.file_id
+                  const uploading = uploadingReqId === sr.requirement_id
+                  return (
                   <div
                     key={sr.id}
                     className={cn(
@@ -455,29 +472,39 @@ export default function TrainingPage() {
                         )}
                       </p>
                     </div>
+                    {/* Открыть/посмотреть сам загруженный документ */}
+                    {viewFileId && (
+                      <a
+                        href={getFileContentUrl(viewFileId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        title="Открыть документ"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Посмотреть
+                      </a>
+                    )}
                     {sr.requirement.type === 'file_upload' && !sr.is_done && (
-                      <>
+                      <label className={cn(
+                        'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border-2 border-primary/30 px-4 text-sm font-semibold text-primary transition-colors hover:border-primary/60 hover:bg-primary/5',
+                        uploading && 'pointer-events-none opacity-60'
+                      )}>
                         <input
-                          ref={fileInputRef}
                           type="file"
                           className="hidden"
+                          disabled={uploading}
                           onChange={(e) => {
                             const f = e.target.files?.[0]
-                            if (f) handleFileUpload(sr.requirement_id, f)
+                            if (f) handleFileUpload(sr.requirement_id, f, sr.requirement.name)
+                            e.target.value = ''
                           }}
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          loading={uploadingReqId === sr.requirement_id}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          Загрузить
-                        </Button>
-                      </>
+                        {uploading ? 'Проверяю…' : (viewFileId ? 'Заменить' : 'Загрузить')}
+                      </label>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

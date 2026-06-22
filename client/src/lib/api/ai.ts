@@ -16,11 +16,14 @@ export interface LetterCheckResult {
 
 export interface DocumentCheckResult {
   ok: boolean
-  document_type: string
-  issues: string[]
-  empty_fields: string[]
+  status?: 'approved' | 'rejected'
+  detected_type?: string
+  type_match?: boolean
+  readable?: boolean
+  reasons?: string[]
+  issues?: string[]
+  recommendations?: string[]
   verdict: string
-  recommendations: string[]
 }
 
 export interface UniRecommendation {
@@ -112,9 +115,10 @@ export const apiBarashekGuide = (params: {
 export const apiAiCheckLetter = (text: string, translate_to = '') =>
   client.post<LetterCheckResult>('/ai/check-letter', { text, translate_to }).then(r => r.data)
 
-export const apiAiCheckDocument = (file: File) => {
+export const apiAiCheckDocument = (file: File, expected = '') => {
   const form = new FormData()
   form.append('file', file)
+  if (expected) form.append('expected', expected)
   return client.post<DocumentCheckResult>('/ai/check-document', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }).then(r => r.data)

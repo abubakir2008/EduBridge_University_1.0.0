@@ -2,7 +2,7 @@ import io
 import logging
 from datetime import datetime
 from typing import Callable
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -200,7 +200,14 @@ def check_letter(request: Request, req: LetterRequest, user: User = Depends(get_
 
 @router.post("/check-document")
 @limiter.limit("10/minute")
-async def check_document(request: Request, file: UploadFile = File(...), user: User = Depends(get_current_user)):
+async def check_document(
+    request: Request,
+    file: UploadFile = File(...),
+    expected: str = Form(""),
+    user: User = Depends(get_current_user),
+):
+    """Проверка документа. `expected` — ожидаемый тип/название (напр. название
+    требования этапа): ИИ сверяет содержимое с ним и решает, принять ли документ."""
     mime = file.content_type or ""
     fname = (file.filename or "").lower()
     low_mime = mime.lower()
@@ -214,7 +221,10 @@ async def check_document(request: Request, file: UploadFile = File(...), user: U
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "Файл слишком большой (максимум 10 МБ)")
-    return _ai_call(ai_service.check_document_file, content, mime, fname)
+    return _ai_call(
+        ai_service.verify_document,
+        content, mime, fname, "other", len(content), (expected.strip() or None),
+    )
 
 
 @router.post("/extract-document")
