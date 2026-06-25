@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
   title: {
     default:
-      "EduBridge University — Поступление в зарубежные университеты из СНГ",
+      "EduBridge University — Поступление в зарубежные университеты для студентов СНГ",
     template: "%s | EduBridge University",
   },
   description:
